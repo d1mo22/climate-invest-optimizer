@@ -1,0 +1,229 @@
+{
+    "clusters": [
+        {
+            "id": 0,
+            "name": "Campus mango y almacén Lliçà",
+            "coordenates": [0,0]
+        },
+        {
+            "id": 1,
+            "name": "Madrid",
+            "coordenates": [1,1]
+        },
+        {
+            "id": 2,
+            "name": "Andalucía",
+            "coordenates": [2,2]
+        },
+        {
+            "id": 3,
+            "name": "Baleares",
+            "coordenates": [3,3]
+        },
+        {
+            "id": 4,
+            "name": "Barcelona",
+            "coordenates": [4,4]
+        },
+        {
+            "id": 5,
+            "name": "Canarias",
+            "coordenates": [5,5]
+        },
+        {
+            "id": 6,
+            "name": "Galicia",
+            "coordenates": [6,6]
+        },
+        {
+            "id": 7,
+            "name": "Valencia",
+            "coordenates": [7,7]
+        },
+        {
+            "id": 8,
+            "name": "Zaragoza",
+            "coordenates": [8,8]
+        },
+        {
+            "id": 9,
+            "name": "Dinamarca",
+            "coordenates": [9,9]
+        },
+        {
+            "id": 10,
+            "name": "Helsinki",
+            "coordenates": [10,10]
+        },
+        {
+            "id": 11,
+            "name": "Oslo",
+            "coordenates": [11,11]
+        },
+        {
+            "id": 12,
+            "name": "Irlanda",
+            "coordenates": [12,12]
+        },
+        {
+            "id": 13,
+            "name": "Kiev",
+            "coordenates": [13,13]
+        },
+        {
+            "id": 14,
+            "name": "Glasgow",
+            "coordenates": [14,14]
+        },
+        {
+            "id": 15,
+            "name": "Londres",
+            "coordenates": [15,15]
+        },
+        {
+            "id": 16,
+            "name": "Nápoles",
+            "coordenates": [16,16]
+        },
+        {
+            "id": 17,
+            "name": "Roma",
+            "coordenates": [17,17]
+        },
+        {
+            "id": 18,
+            "name": "Milán",
+            "coordenates": [18,18]
+        },
+        {
+            "id": 19,
+            "name": "Graz",
+            "coordenates": [19,19]
+        },
+        {
+            "id": 20,
+            "name": "Split",
+            "coordenates": [20,20]
+        },
+        {
+            "id": 21,
+            "name": "Oporto",
+            "coordenates": [21,21]
+        },
+        {
+            "id": 22,
+            "name": "Lisboa",
+            "coordenates": [22,22]
+        },
+        {
+            "id": 23,
+            "name": "Amsterdam",
+            "coordenates": [23,23]
+        },
+        {
+            "id": 24,
+            "name": "Zurich",
+            "coordenates": [24,24]
+        },
+        {
+            "id": 25,
+            "name": "Istanbul",
+            "coordenates": [25,25]
+        },
+        {
+            "id": 26,
+            "name": "Bucarest",
+            "coordenates": [26,26]
+        },
+        {
+            "id": 27,
+            "name": "Berlín",
+            "coordenates": [27,27]
+        },
+        {
+            "id": 28,
+            "name": "Cracovia",
+            "coordenates": [28,28]
+        },
+        {
+            "id": 29,
+            "name": "Munich",
+            "coordenates": [29,29]
+        },
+        {
+            "id": 30,
+            "name": "Lyon",
+            "coordenates": [30,30]
+        },
+        {
+            "id": 31,
+            "name": "Nantes",
+            "coordenates": [31,31]
+        },
+        {
+            "id": 32,
+            "name": "Marsella",
+            "coordenates": [32,32]
+        },
+        {
+            "id": 33,
+            "name": "París",
+            "coordenates": [33,33]
+        },
+        {
+            "id": 34,
+            "name": "Atenas",
+            "coordenates": [34,34]
+        },
+        {
+            "id": 35,
+            "name": "Hamburgo",
+            "coordenates": [35,35]
+        },
+        {
+            "id": 36,
+            "name": "Los Ángeles",
+            "coordenates": [36,36]
+        },
+        {
+            "id": 37,
+            "name": "El Paso",
+            "coordenates": [37,37]
+        },
+        {
+            "id": 38,
+            "name": "Houston",
+            "coordenates": [38,38]
+        },
+        {
+            "id": 39,
+            "name": "Atlanta",
+            "coordenates": [39,39]
+        },
+        {
+            "id": 40,
+            "name": "Washington",
+            "coordenates": [40,40]
+        },
+        {
+            "id": 41,
+            "name": "Nueva York",
+            "coordenates": [41,41]
+        },
+        {
+            "id": 42,
+            "name": "Miami",
+            "coordenates": [42,42]
+        },
+        {
+            "id": 43,
+            "name": "Singapur",
+            "coordenates": [43,43]
+        },
+        {
+            "id": 44,
+            "name": "Hong Kong",
+            "coordenates": [44,44]
+        }
+    ]
+}
