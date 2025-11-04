@@ -244,7 +244,7 @@ export default function CountryMap() {
       {/* Controles */}
       <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", gap: 8 }}>
         <button onClick={() => navigate(-1)}>← Volver</button>
-        <button onClick={() => navigate("/dashboards")}>Ver dashboards</button>
+        <button onClick={() => navigate(`/dashboard/${slug}`)}>Ver dashboard</button>
         <button onClick={() => setRefitTick((n) => n + 1)}>Re-centrar</button>
       </div>
 
