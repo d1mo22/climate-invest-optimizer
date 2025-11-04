@@ -2,6 +2,7 @@
 import { Routes, Route, Link } from "react-router-dom";
 import Home from "./pages/Home";
 import Map from "./pages/Map";
+import DashBoards from "./pages/DashBoards";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/map" element={<Map />} />
+        <Route path="/dashboards" element={<DashBoards />} />
       </Routes>
     </div>
   );
