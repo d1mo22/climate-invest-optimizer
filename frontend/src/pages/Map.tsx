@@ -8,7 +8,11 @@ export default function Map() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [tip, setTip] = useState<Tip>(null);
-
+  const slugify = (s: string) =>
+  s.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -103,10 +107,15 @@ export default function Map() {
       const enter = onEnter(p);
       const move = onMove(p);
       const leave = onLeave(p);
-
+  const onClick = () => {
+    const name = p.getAttribute("name") || "";
+    const slug = slugify(name);
+    navigate(`/country/${slug}`, { state: { name } });
+  };
       p.addEventListener("mouseenter", enter);
       p.addEventListener("mousemove", move);
       p.addEventListener("mouseleave", leave);
+      p.addEventListener("click", onClick);
       listeners.push({ p, enter, move, leave });
 
       // brillo base (opcional)

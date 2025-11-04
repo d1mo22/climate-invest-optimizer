@@ -8,13 +8,13 @@ const { Header, Content } = Layout;
 export default function AppLayout() {
   const { pathname } = useLocation();
 
+  // claves y enlaces RELATIVOS al layout
   const items = [
     { key: "/", label: <Link to="/">Home</Link> },
     { key: "/map", label: <Link to="/map">Map</Link> },
     { key: "/dashboards", label: <Link to="/dashboards">Dashboards</Link> },
   ];
 
-  // Selecciona la pestaña según la URL actual
   const selectedKey =
     items.find(i => pathname === i.key || pathname.startsWith(i.key + "/"))?.key ?? "/";
 
@@ -32,7 +32,6 @@ export default function AppLayout() {
       </Header>
 
       <Content style={{ padding: 16 }}>
-        {/* Aquí se renderizan tus páginas */}
         <Outlet />
       </Content>
     </Layout>

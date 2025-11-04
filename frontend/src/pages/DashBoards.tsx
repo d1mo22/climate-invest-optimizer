@@ -2,26 +2,37 @@ import React from "react";
 import { PageContainer, ProCard, StatisticCard, ProTable } from "@ant-design/pro-components";
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
-import { Gauge } from "@ant-design/plots";
+import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
 
-/* ===================== Tipos ===================== */
 type Row = {
   key: number;
   país: string;
-  inversión: number;         // €M
+  inversión: number;         // €M (capex actual de referencia)
   ROI: string;               // "12.3%"
+
   // Riesgos
   riesgosTotales: number;
   riesgosResueltos: number;
   riesgosPendientes: number;
-  pctRiesgosResueltos: string; // "xx.x%"
+  pctRiesgosResueltos: string;
+
   // Tiendas
   tiendasTotales: number;
   tiendasMejoradas: number;
-  pctTiendasMejoradas: string; // "xx.x%"
+  pctTiendasMejoradas: string;
+
+  // Extensiones para outlook y métricas financieras
+  beneficioAnual: number;    // €M/año (aprox) -> usado p/ payback y "beneficios"
+  planNextYear: number;      // €M (capex año siguiente estimado)
+  plan10y: number;           // €M (capex agregado 10 años)
 };
 
-/* ===================== Datos base ===================== */
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const roiToNum = (roi: string) => parseFloat(roi); // "12.3%" -> 12.3
+
+/* ============================
+   DATA BASE + ENRIQUECIMIENTO
+============================ */
 const base: Array<Pick<Row, "key" | "país" | "inversión" | "ROI">> = [
   { key: 1,  país: "Alemania",     inversión: 150, ROI: "10.0%" },
   { key: 2,  país: "Francia",      inversión: 130, ROI: "11.0%" },
@@ -69,10 +80,6 @@ const base: Array<Pick<Row, "key" | "país" | "inversión" | "ROI">> = [
   { key: 44, país: "Liechtenstein", inversión: 4,  ROI: "9.7%"  },
 ];
 
-/* ===================== Enriquecimiento ===================== */
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const roiToNum = (roi: string) => parseFloat(roi); // "12.3%" -> 12.3
-
 export const data: Row[] = base.map((d) => {
   const roiNum = roiToNum(d.ROI);
 
@@ -89,6 +96,13 @@ export const data: Row[] = base.map((d) => {
   const tiendasMejoradas = Math.min(tiendasTotales, Math.round(tiendasTotales * ratioTiendasMejoradas));
   const pctTiendasMejoradas = `${((tiendasMejoradas / tiendasTotales) * 100).toFixed(1)}%`;
 
+  // Beneficio anual aproximado (ROI sobre la inversión de referencia)
+  const beneficioAnual = +(d.inversión * (roiNum / 100)).toFixed(1);
+
+  // Planes (demostrativos): año siguiente ~40% del capex de referencia; 10 años ~3.5x
+  const planNextYear = +(d.inversión * 0.4).toFixed(0);
+  const plan10y = +(d.inversión * 3.5).toFixed(0);
+
   return {
     ...d,
     riesgosTotales,
@@ -98,30 +112,34 @@ export const data: Row[] = base.map((d) => {
     tiendasTotales,
     tiendasMejoradas,
     pctTiendasMejoradas,
+    beneficioAnual,
+    planNextYear,
+    plan10y,
   };
 });
 
-// ordenar por inversión desc
+// Orden y agregados
 data.sort((a, b) => b.inversión - a.inversión);
 
-/* ===================== KPIs globales ===================== */
 const inversionTotal = data.reduce((s, r) => s + r.inversión, 0);
 const totRiesgos = data.reduce((s, r) => s + r.riesgosTotales, 0);
 const totResueltos = data.reduce((s, r) => s + r.riesgosResueltos, 0);
-
-// ROI total ponderado por inversión
 const roiTotalPct =
-  inversionTotal === 0
-    ? 0
-    : data.reduce((s, r) => s + r.inversión * roiToNum(r.ROI), 0) / inversionTotal;
+  inversionTotal === 0 ? 0 : data.reduce((s, r) => s + r.inversión * roiToNum(r.ROI), 0) / inversionTotal;
 
-// % Tiendas mejoradas global
 const totTiendas = data.reduce((s, r) => s + r.tiendasTotales, 0);
 const totTiendasMej = data.reduce((s, r) => s + r.tiendasMejoradas, 0);
 const pctTiendasMejoradasGlobal = totTiendas === 0 ? 0 : (totTiendasMej / totTiendas) * 100;
 
-// Gauge riesgos resueltos global
+const beneficioAnualTotal = data.reduce((s, r) => s + r.beneficioAnual, 0);
+const paybackMedio = beneficioAnualTotal > 0 ? inversionTotal / beneficioAnualTotal : 0; // años
+
 const percentRiesgos = totRiesgos ? totResueltos / totRiesgos : 0;
+
+/* ============================
+   CONFIG GRÁFICOS
+============================ */
+// Gauge % riesgos resueltos
 const gaugeConfig = {
   percent: percentRiesgos,
   innerRadius: 0.9,
@@ -135,14 +153,70 @@ const gaugeConfig = {
   },
 };
 
-/* ===================== Componente ===================== */
+// DualAxes: inversión vs beneficios (2026-2035)
+const years = Array.from({ length: 10 }).map((_, i) => 2026 + i);
+const capex10yTotal = data.reduce((s, r) => s + r.plan10y, 0);
+const beneficios10yBase = beneficioAnualTotal * 10 * 0.9; // leve conservadurismo
+
+// distribuciones sencillas para demo
+const invSeries = years.map((y, i) => ({
+  year: String(y),
+  tipo: "Inversión (€M)",
+  valor: Math.round((capex10yTotal * (1 - i / years.length) * 2) / (years.length * 2)), // más front-loaded
+}));
+const benSeries = years.map((y, i) => ({
+  year: String(y),
+  tipo: "Beneficios (€M)",
+  valor: Math.round((beneficios10yBase / years.length) * (0.8 + 0.4 * (i / (years.length - 1)))), // crecen
+}));
+const dualData = [invSeries, benSeries];
+
+const dualConfig = {
+  data: dualData as any,
+  xField: "year",
+  yField: ["valor", "valor"],
+  geometryOptions: [
+    { geometry: "column", isStack: false },
+    { geometry: "line", smooth: true },
+  ],
+  legend: { position: "top" as const },
+  tooltip: { shared: true },
+};
+
+// Column: Top 10 inversión por país
+const top10 = [...data].sort((a, b) => b.inversión - a.inversión).slice(0, 10);
+const columnConfig = {
+  data: top10.map((d) => ({ país: d.país, inversión: d.inversión })),
+  xField: "país",
+  yField: "inversión",
+  xAxis: { label: { autoRotate: true } },
+  tooltip: { showMarkers: false },
+};
+
+// Pie: distribución de inversión (Top 8 + resto)
+const top8 = [...data].sort((a, b) => b.inversión - a.inversión).slice(0, 8);
+const rest = data.slice(8);
+const restSum = rest.reduce((s, r) => s + r.inversión, 0);
+const pieData = [
+  ...top8.map((d) => ({ name: d.país, value: d.inversión })),
+  ...(restSum > 0 ? [{ name: "Resto", value: restSum }] : []),
+];
+const pieConfig = {
+  data: pieData,
+  angleField: "value",
+  colorField: "name",
+  legend: { position: "right" as const },
+  label: { type: "inner", offset: "-30%", content: "{percentage}" },
+  interactions: [{ type: "element-active" }],
+};
+
 export default function Dashboards() {
   const navigate = useNavigate();
 
   return (
     <PageContainer
       header={{
-        title: "📊 Dashboards",
+        title: "📊 Europa — Overview compañía",
         extra: [
           <Button key="map" type="primary" onClick={() => navigate("/map")}>
             Ir al Mapa
@@ -151,38 +225,27 @@ export default function Dashboards() {
       }}
     >
       <ProCard direction="column" gutter={[12, 12]} ghost>
-
-        {/* KPIs + GAUGE (compacto) */}
+        {/* KPIs + Gauge */}
         <ProCard split="vertical" ghost>
           <ProCard colSpan="70%" gutter={12} wrap ghost>
             <StatisticCard
               bordered
-              statistic={{
-                title: "Inversión total (€M)",
-                value: inversionTotal,
-                precision: 0,
-                suffix: "M",
-              }}
+              statistic={{ title: "Inversión total (€M)", value: inversionTotal, precision: 0, suffix: "M" }}
               style={{ minWidth: 220 }}
             />
             <StatisticCard
               bordered
-              statistic={{
-                title: "ROI total (pond.)",
-                value: roiTotalPct,
-                precision: 1,
-                suffix: "%",
-              }}
+              statistic={{ title: "ROI total (pond.)", value: roiTotalPct, precision: 1, suffix: "%" }}
               style={{ minWidth: 220 }}
             />
             <StatisticCard
               bordered
-              statistic={{
-                title: "% Tiendas mejoradas",
-                value: pctTiendasMejoradasGlobal,
-                precision: 1,
-                suffix: "%",
-              }}
+              statistic={{ title: "% Tiendas mejoradas", value: pctTiendasMejoradasGlobal, precision: 1, suffix: "%" }}
+              style={{ minWidth: 220 }}
+            />
+            <StatisticCard
+              bordered
+              statistic={{ title: "Payback medio (años)", value: paybackMedio, precision: 1 }}
               style={{ minWidth: 220 }}
             />
           </ProCard>
@@ -197,7 +260,23 @@ export default function Dashboards() {
           </ProCard>
         </ProCard>
 
-        {/* TABLA (compacta) */}
+        {/* Outlook 10 años + Top inversión + Distribución */}
+        <ProCard split="vertical" ghost>
+          <ProCard colSpan="50%" bordered title="Inversión vs Beneficios (2026–2035)" size="small">
+            <DualAxes {...dualConfig} />
+          </ProCard>
+
+          <ProCard colSpan="50%" ghost>
+            <ProCard bordered title="Top 10 inversión por país" size="small">
+              <Column {...columnConfig} />
+            </ProCard>
+            <ProCard bordered title="Distribución inversión (Top 8 + resto)" size="small" style={{ marginTop: 12 }}>
+              <Pie {...pieConfig} />
+            </ProCard>
+          </ProCard>
+        </ProCard>
+
+        {/* Tabla compacta por país */}
         <ProCard bordered title="Detalle por país" size="small">
           <ProTable<Row>
             rowKey="key"
