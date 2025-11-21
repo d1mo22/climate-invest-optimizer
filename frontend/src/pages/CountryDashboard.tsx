@@ -230,12 +230,12 @@ export default function CountryDashboard() {
       header={{
         title: `📊 ${data.país} — Dashboard`,
         extra: [
-          <Button key="map" onClick={() => navigate(`/country/${slug}`)}>
+          <button key="map" onClick={() => navigate(`/country/${slug}`)}>
             Ver Mapa
-          </Button>,
-          <Button key="all" type="primary" onClick={() => navigate("/dashboards")}>
+          </button>,
+          <button key="all" onClick={() => navigate("/dashboards")}>
             Todos los países
-          </Button>,
+          </button>,
         ],
       }}
     >

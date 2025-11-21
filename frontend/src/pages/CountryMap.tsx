@@ -88,9 +88,9 @@ export default function CountryMap() {
     allPaths.forEach((p) => {
       if (p === target) {
         p.style.display = "inline";
-        p.style.fill = "#00ff88";
-        p.style.stroke = "#007a55";
-        p.style.strokeWidth = "1.4";
+        p.style.fill = "#7caf9aff";
+        p.style.stroke = "#e0f7f0ff";
+        p.style.strokeWidth = "0.2";
         p.style.pointerEvents = "auto";
       } else {
         p.style.display = "none";

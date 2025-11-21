@@ -3,6 +3,7 @@ import { PageContainer, ProCard, StatisticCard, ProTable } from "@ant-design/pro
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
+import "../index.css"
 
 type Row = {
   key: number;
@@ -213,14 +214,14 @@ const pieConfig = {
 export default function Dashboards() {
   const navigate = useNavigate();
 
-  return (
+return (
     <PageContainer
       header={{
         title: "📊 Europa — Overview compañía",
         extra: [
-          <Button key="map" type="primary" onClick={() => navigate("/map")}>
-            Ir al Mapa
-          </Button>,
+          <button key="map" onClick={() => navigate("/map")}>
+          Ir al Mapa
+          </button>,
         ],
       }}
     >
@@ -261,20 +262,46 @@ export default function Dashboards() {
         </ProCard>
 
         {/* Outlook 10 años + Top inversión + Distribución */}
-        <ProCard split="vertical" ghost>
-          <ProCard colSpan="50%" bordered title="Inversión vs Beneficios (2026–2035)" size="small">
-            <DualAxes {...dualConfig} />
-          </ProCard>
+        <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
+  {/* Izquierda: DualAxes ocupa toda la altura disponible de la fila */}
+  <ProCard
+    colSpan="50%"
+    bordered
+    title="Inversión vs Beneficios (2026–2035)"
+    size="small"
+    style={{ height: "100%" }}
+    bodyStyle={{ padding: 16, height: "100%" }}
+  >
+    <DualAxes {...dualConfig} />
+  </ProCard>
 
-          <ProCard colSpan="50%" ghost>
-            <ProCard bordered title="Top 10 inversión por país" size="small">
-              <Column {...columnConfig} />
-            </ProCard>
-            <ProCard bordered title="Distribución inversión (Top 8 + resto)" size="small" style={{ marginTop: 12 }}>
-              <Pie {...pieConfig} />
-            </ProCard>
-          </ProCard>
-        </ProCard>
+  {/* Derecha: dos cards apilados que rellenan toda la columna */}
+  <ProCard
+    colSpan="50%"
+    ghost
+    style={{ display: "flex", flexDirection: "column", gap: 12 }}
+  >
+    <ProCard
+      bordered
+      title="Top 10 inversión por país"
+      size="small"
+      style={{ flex: 1 }}
+      bodyStyle={{ padding: 16, height: "100%" }}
+    >
+      <Column {...columnConfig} />
+    </ProCard>
+
+    <ProCard
+      bordered
+      title="Distribución inversión (Top 8 + resto)"
+      size="small"
+      style={{ flex: 1 }}
+      bodyStyle={{ padding: 16, height: "100%" }}
+    >
+      <Pie {...pieConfig} />
+    </ProCard>
+  </ProCard>
+</ProCard>
 
         {/* Tabla compacta por país */}
         <ProCard bordered title="Detalle por país" size="small">
