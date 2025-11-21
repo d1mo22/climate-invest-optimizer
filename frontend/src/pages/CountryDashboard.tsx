@@ -1,4 +1,9 @@
-import { PageContainer, ProCard, StatisticCard, ProTable } from "@ant-design/pro-components";
+import {
+  PageContainer,
+  ProCard,
+  StatisticCard,
+  ProTable,
+} from "@ant-design/pro-components";
 import { Button } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
@@ -7,19 +12,51 @@ import { slugify } from "../utils/slugify";
 
 // Alias: slug inglés → nombre español (mismo que en CountryMap)
 const ALIAS: Record<string, string> = {
-  spain: "España", germany: "Alemania", france: "Francia", italy: "Italia",
-  "united-kingdom": "Reino Unido", netherlands: "Países Bajos", belgium: "Bélgica",
-  switzerland: "Suiza", austria: "Austria", poland: "Polonia", czechia: "Chequia",
-  "czech-republic": "Chequia", slovakia: "Eslovaquia", hungary: "Hungría",
-  slovenia: "Eslovenia", croatia: "Croacia", greece: "Grecia", romania: "Rumanía",
-  bulgaria: "Bulgaria", lithuania: "Lituania", latvia: "Letonia", estonia: "Estonia",
-  finland: "Finlandia", sweden: "Suecia", norway: "Noruega", iceland: "Islandia",
-  ireland: "Irlanda", andorra: "Andorra", monaco: "Mónaco", "san-marino": "San Marino",
-  liechtenstein: "Liechtenstein", luxembourg: "Luxemburgo", malta: "Malta",
-  cyprus: "Chipre", albania: "Albania", serbia: "Serbia", montenegro: "Montenegro",
-  "north-macedonia": "Macedonia del Norte", macedonia: "Macedonia del Norte",
-  "bosnia-and-herzegovina": "Bosnia y Herzegovina", bosnia: "Bosnia y Herzegovina",
-  kosovo: "Kosovo", moldova: "Moldavia", ukraine: "Ucrania", belarus: "Bielorrusia",
+  spain: "España",
+  germany: "Alemania",
+  france: "Francia",
+  italy: "Italia",
+  "united-kingdom": "Reino Unido",
+  netherlands: "Países Bajos",
+  belgium: "Bélgica",
+  switzerland: "Suiza",
+  austria: "Austria",
+  poland: "Polonia",
+  czechia: "Chequia",
+  "czech-republic": "Chequia",
+  slovakia: "Eslovaquia",
+  hungary: "Hungría",
+  slovenia: "Eslovenia",
+  croatia: "Croacia",
+  greece: "Grecia",
+  romania: "Rumanía",
+  bulgaria: "Bulgaria",
+  lithuania: "Lituania",
+  latvia: "Letonia",
+  estonia: "Estonia",
+  finland: "Finlandia",
+  sweden: "Suecia",
+  norway: "Noruega",
+  iceland: "Islandia",
+  ireland: "Irlanda",
+  andorra: "Andorra",
+  monaco: "Mónaco",
+  "san-marino": "San Marino",
+  liechtenstein: "Liechtenstein",
+  luxembourg: "Luxemburgo",
+  malta: "Malta",
+  cyprus: "Chipre",
+  albania: "Albania",
+  serbia: "Serbia",
+  montenegro: "Montenegro",
+  "north-macedonia": "Macedonia del Norte",
+  macedonia: "Macedonia del Norte",
+  "bosnia-and-herzegovina": "Bosnia y Herzegovina",
+  bosnia: "Bosnia y Herzegovina",
+  kosovo: "Kosovo",
+  moldova: "Moldavia",
+  ukraine: "Ucrania",
+  belarus: "Bielorrusia",
 };
 
 // Datos de ejemplo para un país individual (si es necesario un fallback)
@@ -40,36 +77,167 @@ const exampleCountryData = {
 };
 
 // Datos de riesgos por país (ejemplo)
-const risksByCountry: Record<string, Array<{
-  id: number;
-  tipo: string;
-  descripcion: string;
-  frecuencia: "Alta" | "Media" | "Baja";
-  impacto: "Alto" | "Medio" | "Bajo";
-  estado: "Resuelto" | "Pendiente";
-  tiendas_afectadas: number;
-}>> = {
-  "España": [
-    { id: 1, tipo: "Energético", descripcion: "Fluctuaciones en el precio de energía", frecuencia: "Alta", impacto: "Alto", estado: "Resuelto", tiendas_afectadas: 45 },
-    { id: 2, tipo: "Climático", descripcion: "Sequías estacionales", frecuencia: "Alta", impacto: "Medio", estado: "Resuelto", tiendas_afectadas: 32 },
-    { id: 3, tipo: "Regulatorio", descripcion: "Cambios en normas de eficiencia", frecuencia: "Media", impacto: "Medio", estado: "Resuelto", tiendas_afectadas: 28 },
-    { id: 4, tipo: "Operacional", descripcion: "Fallo en sistemas HVAC", frecuencia: "Media", impacto: "Alto", estado: "Pendiente", tiendas_afectadas: 15 },
-    { id: 5, tipo: "Financiero", descripcion: "Volatilidad en tipos de cambio", frecuencia: "Alta", impacto: "Bajo", estado: "Pendiente", tiendas_afectadas: 8 },
-    { id: 6, tipo: "Reputacional", descripcion: "Impacto de huella de carbono", frecuencia: "Media", impacto: "Medio", estado: "Pendiente", tiendas_afectadas: 12 },
+const risksByCountry: Record<
+  string,
+  Array<{
+    id: number;
+    tipo: string;
+    descripcion: string;
+    frecuencia: "Alta" | "Media" | "Baja";
+    impacto: "Alto" | "Medio" | "Bajo";
+    estado: "Resuelto" | "Pendiente";
+    tiendas_afectadas: number;
+  }>
+> = {
+  España: [
+    {
+      id: 1,
+      tipo: "Energético",
+      descripcion: "Fluctuaciones en el precio de energía",
+      frecuencia: "Alta",
+      impacto: "Alto",
+      estado: "Resuelto",
+      tiendas_afectadas: 45,
+    },
+    {
+      id: 2,
+      tipo: "Climático",
+      descripcion: "Sequías estacionales",
+      frecuencia: "Alta",
+      impacto: "Medio",
+      estado: "Resuelto",
+      tiendas_afectadas: 32,
+    },
+    {
+      id: 3,
+      tipo: "Regulatorio",
+      descripcion: "Cambios en normas de eficiencia",
+      frecuencia: "Media",
+      impacto: "Medio",
+      estado: "Resuelto",
+      tiendas_afectadas: 28,
+    },
+    {
+      id: 4,
+      tipo: "Operacional",
+      descripcion: "Fallo en sistemas HVAC",
+      frecuencia: "Media",
+      impacto: "Alto",
+      estado: "Pendiente",
+      tiendas_afectadas: 15,
+    },
+    {
+      id: 5,
+      tipo: "Financiero",
+      descripcion: "Volatilidad en tipos de cambio",
+      frecuencia: "Alta",
+      impacto: "Bajo",
+      estado: "Pendiente",
+      tiendas_afectadas: 8,
+    },
+    {
+      id: 6,
+      tipo: "Reputacional",
+      descripcion: "Impacto de huella de carbono",
+      frecuencia: "Media",
+      impacto: "Medio",
+      estado: "Pendiente",
+      tiendas_afectadas: 12,
+    },
   ],
-  "Alemania": [
-    { id: 1, tipo: "Regulatorio", descripcion: "Regulaciones de emisiones de CO2", frecuencia: "Alta", impacto: "Alto", estado: "Resuelto", tiendas_afectadas: 52 },
-    { id: 2, tipo: "Energético", descripcion: "Dependencia de energía renovable", frecuencia: "Alta", impacto: "Medio", estado: "Resuelto", tiendas_afectadas: 38 },
-    { id: 3, tipo: "Climático", descripcion: "Inviernos extremos", frecuencia: "Media", impacto: "Alto", estado: "Resuelto", tiendas_afectadas: 25 },
-    { id: 4, tipo: "Operacional", descripcion: "Mantenimiento preventivo", frecuencia: "Media", impacto: "Medio", estado: "Pendiente", tiendas_afectadas: 18 },
-    { id: 5, tipo: "Suministro", descripcion: "Cadena de suministro disruptiva", frecuencia: "Baja", impacto: "Alto", estado: "Pendiente", tiendas_afectadas: 10 },
+  Alemania: [
+    {
+      id: 1,
+      tipo: "Regulatorio",
+      descripcion: "Regulaciones de emisiones de CO2",
+      frecuencia: "Alta",
+      impacto: "Alto",
+      estado: "Resuelto",
+      tiendas_afectadas: 52,
+    },
+    {
+      id: 2,
+      tipo: "Energético",
+      descripcion: "Dependencia de energía renovable",
+      frecuencia: "Alta",
+      impacto: "Medio",
+      estado: "Resuelto",
+      tiendas_afectadas: 38,
+    },
+    {
+      id: 3,
+      tipo: "Climático",
+      descripcion: "Inviernos extremos",
+      frecuencia: "Media",
+      impacto: "Alto",
+      estado: "Resuelto",
+      tiendas_afectadas: 25,
+    },
+    {
+      id: 4,
+      tipo: "Operacional",
+      descripcion: "Mantenimiento preventivo",
+      frecuencia: "Media",
+      impacto: "Medio",
+      estado: "Pendiente",
+      tiendas_afectadas: 18,
+    },
+    {
+      id: 5,
+      tipo: "Suministro",
+      descripcion: "Cadena de suministro disruptiva",
+      frecuencia: "Baja",
+      impacto: "Alto",
+      estado: "Pendiente",
+      tiendas_afectadas: 10,
+    },
   ],
-  "Francia": [
-    { id: 1, tipo: "Energético", descripcion: "Disponibilidad de energía nuclear", frecuencia: "Media", impacto: "Alto", estado: "Resuelto", tiendas_afectadas: 40 },
-    { id: 2, tipo: "Climático", descripcion: "Olas de calor", frecuencia: "Alta", impacto: "Alto", estado: "Resuelto", tiendas_afectadas: 35 },
-    { id: 3, tipo: "Regulatorio", descripcion: "Regulaciones de etiquetado", frecuencia: "Media", impacto: "Medio", estado: "Resuelto", tiendas_afectadas: 22 },
-    { id: 4, tipo: "Operacional", descripcion: "Gestión de residuos", frecuencia: "Alta", impacto: "Bajo", estado: "Pendiente", tiendas_afectadas: 14 },
-    { id: 5, tipo: "Financiero", descripcion: "Costos de descarbonización", frecuencia: "Alta", impacto: "Alto", estado: "Pendiente", tiendas_afectadas: 20 },
+  Francia: [
+    {
+      id: 1,
+      tipo: "Energético",
+      descripcion: "Disponibilidad de energía nuclear",
+      frecuencia: "Media",
+      impacto: "Alto",
+      estado: "Resuelto",
+      tiendas_afectadas: 40,
+    },
+    {
+      id: 2,
+      tipo: "Climático",
+      descripcion: "Olas de calor",
+      frecuencia: "Alta",
+      impacto: "Alto",
+      estado: "Resuelto",
+      tiendas_afectadas: 35,
+    },
+    {
+      id: 3,
+      tipo: "Regulatorio",
+      descripcion: "Regulaciones de etiquetado",
+      frecuencia: "Media",
+      impacto: "Medio",
+      estado: "Resuelto",
+      tiendas_afectadas: 22,
+    },
+    {
+      id: 4,
+      tipo: "Operacional",
+      descripcion: "Gestión de residuos",
+      frecuencia: "Alta",
+      impacto: "Bajo",
+      estado: "Pendiente",
+      tiendas_afectadas: 14,
+    },
+    {
+      id: 5,
+      tipo: "Financiero",
+      descripcion: "Costos de descarbonización",
+      frecuencia: "Alta",
+      impacto: "Alto",
+      estado: "Pendiente",
+      tiendas_afectadas: 20,
+    },
   ],
 };
 
@@ -78,7 +246,10 @@ export default function CountryDashboard() {
   const { slug = "" } = useParams<{ slug: string }>();
 
   // Debug: mostrar qué slugs tenemos y cuál buscamos
-  const availableSlugs = allCountriesData.map(c => ({ país: c.país, slug: slugify(c.país) }));
+  const availableSlugs = allCountriesData.map((c) => ({
+    país: c.país,
+    slug: slugify(c.país),
+  }));
   console.log("🔍 Slug buscado:", slug);
   console.log("📋 Slugs disponibles:", availableSlugs);
 
@@ -99,18 +270,20 @@ export default function CountryDashboard() {
 
   // Si no encuentra el país, usar datos de ejemplo
   if (!countryData) {
-    console.warn(`⚠️ País no encontrado para slug "${slug}", usando datos de ejemplo`);
+    console.warn(
+      `⚠️ País no encontrado para slug "${slug}", usando datos de ejemplo`
+    );
     countryData = exampleCountryData as any;
   }
 
   // Garantizar que countryData no es undefined (TypeScript)
-  const data = countryData!
+  const data = countryData!;
 
   // ===== Datos de riesgos =====
   const countryRisks = risksByCountry[data.país] || risksByCountry["España"];
-  
+
   // Riesgos más frecuentes
-  const frequencyOrder = { "Alta": 1, "Media": 2, "Baja": 3 };
+  const frequencyOrder = { Alta: 1, Media: 2, Baja: 3 };
   const mostFrequentRisks = [...countryRisks]
     .sort((a, b) => frequencyOrder[a.frecuencia] - frequencyOrder[b.frecuencia])
     .slice(0, 5);
@@ -122,7 +295,7 @@ export default function CountryDashboard() {
 
   // Distribución de riesgos por categoría (tipo)
   const risksByType = countryRisks.reduce((acc, risk) => {
-    const existing = acc.find(r => r.tipo === risk.tipo);
+    const existing = acc.find((r) => r.tipo === risk.tipo);
     if (existing) {
       existing.cantidad++;
     } else {
@@ -165,8 +338,12 @@ export default function CountryDashboard() {
 
   const areaData = years.map((year, i) => ({
     year: String(year),
-    "Capex (€M)": Math.round(yearlyCapex * (1.2 - 0.2 * (i / (years.length - 1)))), // decrece
-    "Beneficios (€M)": Math.round(yearlyBenefit * (0.7 + 0.3 * (i / (years.length - 1)))), // crece
+    "Capex (€M)": Math.round(
+      yearlyCapex * (1.2 - 0.2 * (i / (years.length - 1)))
+    ), // decrece
+    "Beneficios (€M)": Math.round(
+      yearlyBenefit * (0.7 + 0.3 * (i / (years.length - 1)))
+    ), // crece
   }));
 
   const areaConfig = {
@@ -212,15 +389,31 @@ export default function CountryDashboard() {
   } as any;
 
   // Tabla detalle de filas
-  const tableData: Array<{ key: string; metrica: string; valor: string | number }> = [
+  const tableData: Array<{
+    key: string;
+    metrica: string;
+    valor: string | number;
+  }> = [
     { key: "1", metrica: "Inversión total", valor: `${data.inversión}M€` },
     { key: "2", metrica: "ROI", valor: data.ROI },
     { key: "3", metrica: "Beneficio anual", valor: `${data.beneficioAnual}M€` },
-    { key: "4", metrica: "Payback", valor: `${(data.inversión / data.beneficioAnual).toFixed(1)} años` },
+    {
+      key: "4",
+      metrica: "Payback",
+      valor: `${(data.inversión / data.beneficioAnual).toFixed(1)} años`,
+    },
     { key: "5", metrica: "Tiendas totales", valor: data.tiendasTotales },
-    { key: "6", metrica: "Tiendas mejoradas", valor: `${data.tiendasMejoradas} (${data.pctTiendasMejoradas})` },
+    {
+      key: "6",
+      metrica: "Tiendas mejoradas",
+      valor: `${data.tiendasMejoradas} (${data.pctTiendasMejoradas})`,
+    },
     { key: "7", metrica: "Riesgos totales", valor: data.riesgosTotales },
-    { key: "8", metrica: "Riesgos resueltos", valor: `${data.riesgosResueltos} (${data.pctRiesgosResueltos})` },
+    {
+      key: "8",
+      metrica: "Riesgos resueltos",
+      valor: `${data.riesgosResueltos} (${data.pctRiesgosResueltos})`,
+    },
     { key: "9", metrica: "Plan próximo año", valor: `${data.planNextYear}M€` },
     { key: "10", metrica: "Plan 10 años", valor: `${data.plan10y}M€` },
   ];
@@ -245,17 +438,31 @@ export default function CountryDashboard() {
           <ProCard colSpan="70%" gutter={12} wrap ghost>
             <StatisticCard
               bordered
-              statistic={{ title: "Inversión (€M)", value: data.inversión, precision: 0 }}
+              statistic={{
+                title: "Inversión (€M)",
+                value: data.inversión,
+                precision: 0,
+              }}
               style={{ minWidth: 200 }}
             />
             <StatisticCard
               bordered
-              statistic={{ title: "ROI", value: parseFloat(data.ROI), precision: 1, suffix: "%" }}
+              statistic={{
+                title: "ROI",
+                value: parseFloat(data.ROI),
+                precision: 1,
+                suffix: "%",
+              }}
               style={{ minWidth: 200 }}
             />
             <StatisticCard
               bordered
-              statistic={{ title: "Tiendas mejoradas", value: parseFloat(data.pctTiendasMejoradas), precision: 1, suffix: "%" }}
+              statistic={{
+                title: "Tiendas mejoradas",
+                value: parseFloat(data.pctTiendasMejoradas),
+                precision: 1,
+                suffix: "%",
+              }}
               style={{ minWidth: 200 }}
             />
             <StatisticCard
@@ -269,11 +476,22 @@ export default function CountryDashboard() {
             />
           </ProCard>
 
-          <ProCard colSpan="30%" bordered style={{ display: "grid", placeItems: "center" }}>
+          <ProCard
+            colSpan="30%"
+            bordered
+            style={{ display: "grid", placeItems: "center" }}
+          >
             <div style={{ width: 180, height: 180 }}>
               <Gauge {...gaugeConfig} />
             </div>
-            <div style={{ textAlign: "center", marginTop: 6, opacity: 0.85, fontSize: 12 }}>
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 6,
+                opacity: 0.85,
+                fontSize: 12,
+              }}
+            >
               {data.riesgosResueltos} / {data.riesgosTotales} riesgos resueltos
             </div>
           </ProCard>
@@ -281,7 +499,12 @@ export default function CountryDashboard() {
 
         {/* Gráficos */}
         <ProCard split="vertical" ghost>
-          <ProCard colSpan="50%" bordered title="Capex vs Beneficios (2026–2035)" size="small">
+          <ProCard
+            colSpan="50%"
+            bordered
+            title="Capex vs Beneficios (2026–2035)"
+            size="small"
+          >
             <Area {...areaConfig} />
           </ProCard>
 
@@ -289,7 +512,12 @@ export default function CountryDashboard() {
             <ProCard bordered title="Estado de riesgos" size="small">
               <Column {...columnConfig} />
             </ProCard>
-            <ProCard bordered title="Tiendas mejoradas" size="small" style={{ marginTop: 12 }}>
+            <ProCard
+              bordered
+              title="Tiendas mejoradas"
+              size="small"
+              style={{ marginTop: 12 }}
+            >
               <Pie {...pieConfig} />
             </ProCard>
           </ProCard>
@@ -306,16 +534,31 @@ export default function CountryDashboard() {
             size="small"
             columns={[
               { title: "Métrica", dataIndex: "metrica", width: "50%" },
-              { title: "Valor", dataIndex: "valor", width: "50%", align: "right" as const },
+              {
+                title: "Valor",
+                dataIndex: "valor",
+                width: "50%",
+                align: "right" as const,
+              },
             ]}
             toolBarRender={false}
           />
         </ProCard>
 
         {/* Análisis de Riesgos */}
-        <ProCard bordered title="⚠️ Análisis de Riesgos" size="small" style={{ marginTop: 12 }}>
+        <ProCard
+          bordered
+          title="⚠️ Análisis de Riesgos"
+          size="small"
+          style={{ marginTop: 12 }}
+        >
           <ProCard split="vertical" ghost>
-            <ProCard colSpan="50%" bordered title="Distribución por tipo" size="small">
+            <ProCard
+              colSpan="50%"
+              bordered
+              title="Distribución por tipo"
+              size="small"
+            >
               <Pie {...riskTypeConfig} />
             </ProCard>
 
@@ -330,13 +573,26 @@ export default function CountryDashboard() {
                   size="small"
                   columns={[
                     { title: "Tipo", dataIndex: "tipo", width: "30%" },
-                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
-                    { 
-                      title: "Frecuencia", 
-                      dataIndex: "frecuencia", 
+                    {
+                      title: "Descripción",
+                      dataIndex: "descripcion",
+                      width: "40%",
+                    },
+                    {
+                      title: "Frecuencia",
+                      dataIndex: "frecuencia",
                       width: "20%",
                       render: (_, record) => (
-                        <span style={{ color: record.frecuencia === "Alta" ? "#ff4d4f" : record.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
+                        <span
+                          style={{
+                            color:
+                              record.frecuencia === "Alta"
+                                ? "#ff4d4f"
+                                : record.frecuencia === "Media"
+                                ? "#faad14"
+                                : "#52c41a",
+                          }}
+                        >
                           {record.frecuencia}
                         </span>
                       ),
@@ -345,7 +601,12 @@ export default function CountryDashboard() {
                   toolBarRender={false}
                 />
               </ProCard>
-              <ProCard bordered title="Riesgos más expuestos" size="small" style={{ marginTop: 12 }}>
+              <ProCard
+                bordered
+                title="Riesgos más expuestos"
+                size="small"
+                style={{ marginTop: 12 }}
+              >
                 <ProTable<(typeof mostExposedRisks)[0]>
                   rowKey="id"
                   dataSource={mostExposedRisks}
@@ -355,14 +616,32 @@ export default function CountryDashboard() {
                   size="small"
                   columns={[
                     { title: "Tipo", dataIndex: "tipo", width: "25%" },
-                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
-                    { title: "Tiendas afectadas", dataIndex: "tiendas_afectadas", width: "20%", align: "right" as const },
-                    { 
-                      title: "Impacto", 
-                      dataIndex: "impacto", 
+                    {
+                      title: "Descripción",
+                      dataIndex: "descripcion",
+                      width: "40%",
+                    },
+                    {
+                      title: "Tiendas afectadas",
+                      dataIndex: "tiendas_afectadas",
+                      width: "20%",
+                      align: "right" as const,
+                    },
+                    {
+                      title: "Impacto",
+                      dataIndex: "impacto",
                       width: "15%",
                       render: (_, record) => (
-                        <span style={{ color: record.impacto === "Alto" ? "#ff4d4f" : record.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
+                        <span
+                          style={{
+                            color:
+                              record.impacto === "Alto"
+                                ? "#ff4d4f"
+                                : record.impacto === "Medio"
+                                ? "#faad14"
+                                : "#52c41a",
+                          }}
+                        >
                           {record.impacto}
                         </span>
                       ),
@@ -376,7 +655,12 @@ export default function CountryDashboard() {
         </ProCard>
 
         {/* Tabla completa de riesgos */}
-        <ProCard bordered title="📋 Detalle completo de riesgos" size="small" style={{ marginTop: 12 }}>
+        <ProCard
+          bordered
+          title="📋 Detalle completo de riesgos"
+          size="small"
+          style={{ marginTop: 12 }}
+        >
           <ProTable<(typeof countryRisks)[0]>
             rowKey="id"
             dataSource={countryRisks}
@@ -388,33 +672,62 @@ export default function CountryDashboard() {
             columns={[
               { title: "Tipo", dataIndex: "tipo", width: 120 },
               { title: "Descripción", dataIndex: "descripcion", width: 250 },
-              { 
-                title: "Frecuencia", 
-                dataIndex: "frecuencia", 
+              {
+                title: "Frecuencia",
+                dataIndex: "frecuencia",
                 width: 100,
                 render: (_, record) => (
-                  <span style={{ color: record.frecuencia === "Alta" ? "#ff4d4f" : record.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
+                  <span
+                    style={{
+                      color:
+                        record.frecuencia === "Alta"
+                          ? "#ff4d4f"
+                          : record.frecuencia === "Media"
+                          ? "#faad14"
+                          : "#52c41a",
+                    }}
+                  >
                     {record.frecuencia}
                   </span>
                 ),
               },
-              { 
-                title: "Impacto", 
-                dataIndex: "impacto", 
+              {
+                title: "Impacto",
+                dataIndex: "impacto",
                 width: 100,
                 render: (_, record) => (
-                  <span style={{ color: record.impacto === "Alto" ? "#ff4d4f" : record.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
+                  <span
+                    style={{
+                      color:
+                        record.impacto === "Alto"
+                          ? "#ff4d4f"
+                          : record.impacto === "Medio"
+                          ? "#faad14"
+                          : "#52c41a",
+                    }}
+                  >
                     {record.impacto}
                   </span>
                 ),
               },
-              { title: "Tiendas afectadas", dataIndex: "tiendas_afectadas", width: 130, align: "right" as const },
-              { 
-                title: "Estado", 
-                dataIndex: "estado", 
+              {
+                title: "Tiendas afectadas",
+                dataIndex: "tiendas_afectadas",
+                width: 130,
+                align: "right" as const,
+              },
+              {
+                title: "Estado",
+                dataIndex: "estado",
                 width: 100,
                 render: (_, record) => (
-                  <span style={{ color: record.estado === "Resuelto" ? "#52c41a" : "#ff4d4f", fontWeight: "bold" }}>
+                  <span
+                    style={{
+                      color:
+                        record.estado === "Resuelto" ? "#52c41a" : "#ff4d4f",
+                      fontWeight: "bold",
+                    }}
+                  >
                     {record.estado}
                   </span>
                 ),

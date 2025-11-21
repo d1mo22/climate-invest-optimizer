@@ -3,34 +3,200 @@ import React, { useEffect, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-/* ===== Utils ===== */
+/* ===== Utils texto ===== */
 const normalize = (s: string) =>
-  s.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9\s-]/g, " ")
-    .replace(/\s+/g, " ").trim();
+    .replace(/\s+/g, " ")
+    .trim();
 
 const slugify = (s: string) => normalize(s).replace(/\s+/g, "-");
 
 const ALIAS: Record<string, string> = {
-  spain: "España", germany: "Alemania", france: "Francia", italy: "Italia",
-  "united-kingdom": "Reino Unido", netherlands: "Países Bajos", belgium: "Bélgica",
-  switzerland: "Suiza", austria: "Austria", poland: "Polonia", czechia: "Chequia",
-  "czech-republic": "Chequia", slovakia: "Eslovaquia", hungary: "Hungría",
-  slovenia: "Eslovenia", croatia: "Croacia", greece: "Grecia", romania: "Rumanía",
-  bulgaria: "Bulgaria", lithuania: "Lituania", latvia: "Letonia", estonia: "Estonia",
-  finland: "Finlandia", sweden: "Suecia", norway: "Noruega", iceland: "Islandia",
-  ireland: "Irlanda", andorra: "Andorra", monaco: "Mónaco", "san-marino": "San Marino",
-  liechtenstein: "Liechtenstein", luxembourg: "Luxemburgo", malta: "Malta",
-  cyprus: "Chipre", albania: "Albania", serbia: "Serbia", montenegro: "Montenegro",
-  "north-macedonia": "Macedonia del Norte", macedonia: "Macedonia del Norte",
-  "bosnia-and-herzegovina": "Bosnia y Herzegovina", bosnia: "Bosnia y Herzegovina",
-  kosovo: "Kosovo", moldova: "Moldavia", ukraine: "Ucrania", belarus: "Bielorrusia",
+  spain: "España",
+  germany: "Alemania",
+  france: "Francia",
+  italy: "Italia",
+  "united-kingdom": "Reino Unido",
+  netherlands: "Países Bajos",
+  belgium: "Bélgica",
+  switzerland: "Suiza",
+  austria: "Austria",
+  poland: "Polonia",
+  czechia: "Chequia",
+  "czech-republic": "Chequia",
+  slovakia: "Eslovaquia",
+  hungary: "Hungría",
+  slovenia: "Eslovenia",
+  croatia: "Croacia",
+  greece: "Grecia",
+  romania: "Rumanía",
+  bulgaria: "Bulgaria",
+  lithuania: "Lituania",
+  latvia: "Letonia",
+  estonia: "Estonia",
+  finland: "Finlandia",
+  sweden: "Suecia",
+  norway: "Noruega",
+  iceland: "Islandia",
+  ireland: "Irlanda",
+  andorra: "Andorra",
+  monaco: "Mónaco",
+  "san-marino": "San Marino",
+  liechtenstein: "Liechtenstein",
+  luxembourg: "Luxemburgo",
+  malta: "Malta",
+  cyprus: "Chipre",
+  albania: "Albania",
+  serbia: "Serbia",
+  montenegro: "Montenegro",
+  "north-macedonia": "Macedonia del Norte",
+  macedonia: "Macedonia del Norte",
+  "bosnia-and-herzegovina": "Bosnia y Herzegovina",
+  bosnia: "Bosnia y Herzegovina",
+  kosovo: "Kosovo",
+  moldova: "Moldavia",
+  ukraine: "Ucrania",
+  belarus: "Bielorrusia",
 };
 
+/* ===== Utils matriz ===== */
 // multiplica DOMMatrix * punto → DOMPoint
 const transformPoint = (m: DOMMatrix, p: DOMPoint) =>
   new DOMPoint(p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f);
+
+/* ===== Constantes markers (copiadas de Map.tsx) ===== */
+
+type CsvRow = {
+  id: string;
+  name: string;
+  country: string;
+  utm_north: string;
+  utm_east: string;
+};
+
+const MARKER_RADIUS_PX = 20; // igual que en Map.tsx
+
+const UTM_ANCHORS: [number, number][] = [
+  [-411926.644, 4926301.901], // Madrid
+  [295006.669, 4804084.443], // Baleares
+  [-14221.956, 6711542.476], // Londres
+  [1492237.774, 6894699.801], // Berlín
+  [2776129.989, 8437661.782], // Helsinki
+  [1391092.885, 5146430.457], // Roma
+  [2220267.244, 6457488.29], // Varsovia
+];
+
+const SVG_ANCHORS: [number, number][] = [
+  [354.050537109375, 564.7141723632812],
+  [440.8133239746094, 573.8910522460938],
+  [399.1004638671875, 392.0228576660156],
+  [559.2778930664062, 371.16644287109375],
+  [686.9193115234375, 257.7073974609375],
+  [565.9519653320312, 540.520751953125],
+  [645.2064208984375, 403.7024841308594],
+];
+
+const PIN_VIEWBOX = "0 0 830 1280";
+const PIN_GROUP_TRANSFORM = "translate(0,1280) scale(0.1,-0.1)";
+const PIN_PATH_D =
+  "M3855 12789 c-555 -44 -1043 -176 -1530 -414 -1457 -712 -2370 -2223 " +
+  "-2322 -3840 19 -605 152 -1155 406 -1680 109 -225 183 -353 331 -575 65 -96 " +
+  "856 -1369 1760 -2827 903 -1459 1646 -2653 1650 -2653 4 0 747 1194 1650 2652 " +
+  "904 1459 1695 2732 1760 2828 148 222 222 350 331 575 421 869 520 1869 279 " +
+  "2821 -244 958 -822 1795 -1640 2371 -696 491 -1551 759 -2404 752 -94 -1 -216 " +
+  "-5 -271 -10z m635 -1764 c440 -80 813 -271 1120 -575 769 -761 825 -1980 130 " +
+  "-2812 -335 -402 -817 -663 -1344 -728 -114 -14 -378 -14 -492 0 -853 105 " +
+  "-1550 715 -1764 1544 -141 545 -52 1136 243 1613 330 531 862 876 1497 968 " +
+  "130 19 481 13 610 -10z";
+
+function getMarkerColor(name: string) {
+  if (name === "Campus mango y almacén lliçá") {
+    return "transparent";
+  }
+  return "#4b6bfdff";
+}
+
+async function fetchCSV(url: string): Promise<CsvRow[]> {
+  const txt = await fetch(url).then((r) => r.text());
+  const [header, ...lines] = txt.trim().split(/\r?\n/);
+  const cols = header.split(",").map((s) => s.trim());
+  return lines.map((line) => {
+    const cells = line.split(",").map((s) => s.trim());
+    const row: any = {};
+    cols.forEach((c, i) => (row[c] = cells[i]));
+    return row as CsvRow;
+  });
+}
+
+// Afinidad N puntos (igual que en Map.tsx)
+function affineFromN(src: [number, number][], dst: [number, number][]) {
+  if (src.length !== dst.length) {
+    throw new Error("src y dst deben tener la misma longitud");
+  }
+  const n = src.length;
+  if (n < 3) {
+    throw new Error("Se necesitan al menos 3 puntos para una afinidad");
+  }
+
+  const AtA = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ];
+  const AtbX = [0, 0, 0];
+  const AtbY = [0, 0, 0];
+
+  for (let i = 0; i < n; i++) {
+    const [E, N] = src[i];
+    const [x, y] = dst[i];
+    const row = [E, N, 1];
+
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        AtA[r][c] += row[r] * row[c];
+      }
+    }
+    for (let r = 0; r < 3; r++) {
+      AtbX[r] += row[r] * x;
+      AtbY[r] += row[r] * y;
+    }
+  }
+
+  const det = (m: number[][]) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+
+  const solve3 = (A: number[][], b: number[]) => {
+    const dA = det(A);
+    if (Math.abs(dA) < 1e-9) {
+      throw new Error(
+        "Sistema casi singular; puntos de ancla mal condicionados"
+      );
+    }
+    const repl = (col: number, vec: number[]) =>
+      A.map((row, i) => row.map((v, j) => (j === col ? vec[i] : v)));
+
+    const dx = det(repl(0, b)) / dA;
+    const dy = det(repl(1, b)) / dA;
+    const dz = det(repl(2, b)) / dA;
+    return [dx, dy, dz];
+  };
+
+  const [a11, a12, a13] = solve3(AtA, AtbX);
+  const [a21, a22, a23] = solve3(AtA, AtbY);
+
+  return (E: number, N: number) => ({
+    x: a11 * E + a12 * N + a13,
+    y: a21 * E + a22 * N + a23,
+  });
+}
+
+/* ===== Componente ===== */
 
 export default function CountryMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -41,12 +207,24 @@ export default function CountryMap() {
   const [error, setError] = useState<string | null>(null);
   const [refitTick, setRefitTick] = useState(0);
 
+  // 🔵 NUEVO: toggle de circunferencias
+  const [showRadius, setShowRadius] = useState(false);
+
+  // 🔵 NUEVO: referencia a todos los círculos para poder enseñar/ocultar
+  const radiusCirclesRef = useRef<SVGCircleElement[]>([]);
+
   useEffect(() => {
     setError(null);
     const container = containerRef.current;
-    if (!container) { setError("containerRef vacío"); return; }
+    if (!container) {
+      setError("containerRef vacío");
+      return;
+    }
     const svg = container.querySelector("svg") as SVGSVGElement | null;
-    if (!svg) { setError("No se encontró el <svg>"); return; }
+    if (!svg) {
+      setError("No se encontró el <svg>");
+      return;
+    }
 
     // ===== 1) Cámara + viewport
     let camera = svg.querySelector("#camera") as SVGGElement | null;
@@ -64,27 +242,58 @@ export default function CountryMap() {
     // mover hijos al viewport (excepto defs y camera)
     Array.from(svg.childNodes).forEach((node) => {
       if (node === camera) return;
-      if (node.nodeType === 1 && (node as Element).tagName.toLowerCase() === "defs") return;
+      if (
+        node.nodeType === 1 &&
+        (node as Element).tagName.toLowerCase() === "defs"
+      )
+        return;
       viewport!.appendChild(node);
     });
+
+    // ===== 1.5) Capa de markers =====
+    let markersLayer = viewport.querySelector(
+      "#markers-layer"
+    ) as SVGGElement | null;
+    if (!markersLayer) {
+      markersLayer = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "g"
+      );
+      markersLayer.setAttribute("id", "markers-layer");
+      viewport.appendChild(markersLayer);
+    } else {
+      markersLayer.innerHTML = "";
+    }
 
     // ===== 2) Encontrar país
     const incomingName = state?.name;
     const aliasName = ALIAS[slug] ?? null;
-    const byName = (name: string) => viewport!.querySelector(`path[name="${CSS.escape(name)}"]`) as SVGPathElement | null;
+    const byName = (name: string) =>
+      viewport!.querySelector(
+        `path[name="${CSS.escape(name)}"]`
+      ) as SVGPathElement | null;
 
     let target: SVGPathElement | null = null;
     if (incomingName) target = byName(incomingName);
     if (!target && aliasName) target = byName(aliasName);
     if (!target) {
       const normSlug = normalize(slug);
-      const all = Array.from(viewport.querySelectorAll("path[name]")) as SVGPathElement[];
-      target = all.find((p) => slugify(p.getAttribute("name") || "") === normSlug) || null;
+      const all = Array.from(
+        viewport.querySelectorAll("path[name]")
+      ) as SVGPathElement[];
+      target =
+        all.find((p) => slugify(p.getAttribute("name") || "") === normSlug) ||
+        null;
     }
-    if (!target) { setError(`No se encontró el país para slug "${slug}".`); return; }
-
+    if (!target) {
+      setError(`No se encontró el país para slug "${slug}".`);
+      return;
+    }
+    const targetCountryName = target.getAttribute("name") || "";
     // ===== 3) Ocultar el resto
-    const allPaths = Array.from(viewport.querySelectorAll("path[name]")) as SVGPathElement[];
+    const allPaths = Array.from(
+      viewport.querySelectorAll("path[name]")
+    ) as SVGPathElement[];
     allPaths.forEach((p) => {
       if (p === target) {
         p.style.display = "inline";
@@ -98,20 +307,185 @@ export default function CountryMap() {
       }
     });
 
+    // ===== 3.5) Dibujar markers (mismo CSV que en Map.tsx) =====
+    radiusCirclesRef.current = [];
+    (async () => {
+      try {
+        const rows = await fetchCSV(
+          "../../public/data/Cluster_rows_utm_simple.csv"
+        );
+        const parsedRaw = rows
+          .map((r) => ({
+            ...r,
+            N: parseFloat(r.utm_north),
+            E: parseFloat(r.utm_east),
+          }))
+          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E));
+
+        // 🔴 NUEVO: filtrar por país del SVG
+        const parsed = parsedRaw.filter(
+          (r) => (r.country || "").trim() === targetCountryName.trim()
+        );
+
+        if (!parsed.length) {
+          console.warn(
+            `No hay filas del CSV para el país "${targetCountryName}" en CountryMap`
+          );
+          return;
+        }
+
+        const vb =
+          svg.viewBox && svg.viewBox.baseVal
+            ? svg.viewBox.baseVal
+            : ({
+                x: 0,
+                y: 0,
+                width: svg.clientWidth || 1000,
+                height: svg.clientHeight || 800,
+              } as DOMRect);
+
+        let projectFromUTM: (E: number, N: number) => { x: number; y: number };
+
+        const hasAnchors =
+          UTM_ANCHORS.every(([e, n]) => !(e === 0 && n === 0)) &&
+          SVG_ANCHORS.every(([x, y]) => !(x === 0 && y === 0));
+
+        if (hasAnchors) {
+          try {
+            const toSvg = affineFromN(UTM_ANCHORS, SVG_ANCHORS);
+            projectFromUTM = (E, N) => toSvg(E, N);
+          } catch (err) {
+            console.error("Error afinidad (CountryMap), usando fallback:", err);
+            let minE = Infinity,
+              maxE = -Infinity,
+              minN = Infinity,
+              maxN = -Infinity;
+            parsed.forEach((r) => {
+              if (r.E < minE) minE = r.E;
+              if (r.E > maxE) maxE = r.E;
+              if (r.N < minN) minN = r.N;
+              if (r.N > maxN) maxN = r.N;
+            });
+            const eSpan = maxE - minE || 1;
+            const nSpan = maxN - minN || 1;
+            projectFromUTM = (E, N) => {
+              const xRatio = (E - minE) / eSpan;
+              const yRatio = 1 - (N - minN) / nSpan;
+              const x = vb.x + xRatio * vb.width;
+              const y = vb.y + yRatio * vb.height;
+              return { x, y };
+            };
+          }
+        } else {
+          console.warn(
+            "Afinidad no configurada; usando proyección lineal (CountryMap)"
+          );
+          let minE = Infinity,
+            maxE = -Infinity,
+            minN = Infinity,
+            maxN = -Infinity;
+          parsed.forEach((r) => {
+            if (r.E < minE) minE = r.E;
+            if (r.E > maxE) maxE = r.E;
+            if (r.N < minN) minN = r.N;
+            if (r.N > maxN) maxN = r.N;
+          });
+          const eSpan = maxE - minE || 1;
+          const nSpan = maxN - minN || 1;
+          projectFromUTM = (E, N) => {
+            const xRatio = (E - minE) / eSpan;
+            const yRatio = 1 - (N - minN) / nSpan;
+            const x = vb.x + xRatio * vb.width;
+            const y = vb.y + yRatio * vb.height;
+            return { x, y };
+          };
+        }
+
+        // 🔹 Dibuja todos los marcadores (igual que en Map, pero sin círculos)
+        parsed.forEach((r) => {
+          const { x, y } = projectFromUTM(r.E, r.N);
+
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          g.setAttribute("transform", `translate(${x}, ${y})`);
+          g.style.cursor = "pointer";
+
+          // 🔵 NUEVO: círculo de radio alrededor del marker
+          const radiusCircle = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle"
+          );
+          radiusCircle.setAttribute("cx", "0");
+          radiusCircle.setAttribute("cy", "0");
+          radiusCircle.setAttribute("r", String(MARKER_RADIUS_PX));
+          radiusCircle.setAttribute("fill", "rgba(75, 107, 253, 0.15)");
+          radiusCircle.setAttribute("stroke", getMarkerColor(r.name));
+          radiusCircle.setAttribute("stroke-width", "1.5");
+          radiusCircle.style.display = showRadius ? "" : "none"; // estado inicial
+
+          // guardar referencia para poder cambiar display luego
+          radiusCirclesRef.current.push(radiusCircle);
+          g.appendChild(radiusCircle);
+
+          // Pin SVG
+          const ICON_W = 0;
+          const ICON_H = 0;
+
+          const svgIcon = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+          );
+          svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
+          svgIcon.setAttribute("width", String(ICON_W));
+          svgIcon.setAttribute("height", String(ICON_H));
+          svgIcon.setAttribute("x", String(-ICON_W / 2));
+          svgIcon.setAttribute("y", String(-ICON_H * 0.85));
+
+          const gIcon = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g"
+          );
+          gIcon.setAttribute("transform", PIN_GROUP_TRANSFORM);
+
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          );
+          path.setAttribute("d", PIN_PATH_D);
+          path.setAttribute("fill", getMarkerColor(r.name));
+          path.setAttribute("stroke", "#111");
+          path.setAttribute("stroke-width", "40");
+
+          gIcon.appendChild(path);
+          svgIcon.appendChild(gIcon);
+          g.appendChild(svgIcon);
+
+          markersLayer!.appendChild(g);
+        });
+      } catch (err) {
+        console.error("Error cargando markers en CountryMap:", err);
+      }
+    })();
+
     // ===== 4) Fit estable con viewBox (menos zoom inicial)
     const FIT_PAD_PX = 28;
     const FIT_SCALE_FACTOR = 0.85; // <1 = más lejos
 
-    const vb = svg.viewBox && svg.viewBox.baseVal
-      ? svg.viewBox.baseVal
-      : { x: 0, y: 0, width: svg.clientWidth || 1000, height: svg.clientHeight || 1000 };
+    const vb =
+      svg.viewBox && svg.viewBox.baseVal
+        ? svg.viewBox.baseVal
+        : {
+            x: 0,
+            y: 0,
+            width: svg.clientWidth || 1000,
+            height: svg.clientHeight || 1000,
+          };
 
     const bbox = target.getBBox();
     const rectPx = svg.getBoundingClientRect();
-    const padUx = (FIT_PAD_PX / Math.max(rectPx.width, 1))  * vb.width;
+    const padUx = (FIT_PAD_PX / Math.max(rectPx.width, 1)) * vb.width;
     const padUy = (FIT_PAD_PX / Math.max(rectPx.height, 1)) * vb.height;
 
-    const sX = (vb.width  - 2 * padUx) / bbox.width;
+    const sX = (vb.width - 2 * padUx) / bbox.width;
     const sY = (vb.height - 2 * padUy) / bbox.height;
     const baseScale = Math.min(sX, sY) * FIT_SCALE_FACTOR;
 
@@ -120,15 +494,14 @@ export default function CountryMap() {
     const vbCx = vb.x + vb.width / 2;
     const vbCy = vb.y + vb.height / 2;
 
-    // Matriz base y su inversa (para convertir puntos a espacio "cámara")
     const baseM = new DOMMatrix()
       .translate(vbCx, vbCy)
       .scale(baseScale)
       .translate(-cx, -cy);
     const baseInv = baseM.inverse();
 
-    // set base transform una vez
-    camera.setAttribute("transform",
+    camera.setAttribute(
+      "transform",
       `translate(${vbCx}, ${vbCy}) scale(${baseScale}) translate(${-cx}, ${-cy})`
     );
 
@@ -161,20 +534,17 @@ export default function CountryMap() {
       return ctm ? pt.matrixTransform(ctm.inverse()) : new DOMPoint(0, 0);
     };
 
-    // ⚠️ Convertimos el cursor a ESPACIO CÁMARA con baseInv
     const toCameraSpace = (ptSvg: DOMPoint) => transformPoint(baseInv, ptSvg);
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // zoom multiplicativo suave
       const factor = Math.pow(1.0018, e.deltaY);
       const newZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z / factor));
       if (newZ === z) return;
 
       const cursorSvg = getSvgPoint(e);
-      const cursorCam = toCameraSpace(cursorSvg); // 👈 punto en coords cámara
+      const cursorCam = toCameraSpace(cursorSvg);
 
-      // mantener el cursor anclado en coords cámara
       tx = cursorCam.x - (cursorCam.x - tx) * (newZ / z);
       ty = cursorCam.y - (cursorCam.y - ty) * (newZ / z);
       z = newZ;
@@ -211,15 +581,16 @@ export default function CountryMap() {
     svg.addEventListener("pointerup", onPointerUp);
     svg.addEventListener("pointerleave", onPointerUp);
 
-    // Recentrar: resetea extra (usa misma baseM/baseInv)
     const refit = () => {
-      z = 1; tx = 0; ty = 0;
-      camera!.setAttribute("transform",
+      z = 1;
+      tx = 0;
+      ty = 0;
+      camera!.setAttribute(
+        "transform",
         `translate(${vbCx}, ${vbCy}) scale(${baseScale}) translate(${-cx}, ${-cy})`
       );
     };
 
-    // Resize: recomputa TODO el fit (simple: refit base)
     const onResize = () => refit();
     window.addEventListener("resize", onResize);
     if (refitTick) refit();
@@ -232,29 +603,62 @@ export default function CountryMap() {
       svg.removeEventListener("pointerleave", onPointerUp as EventListener);
       window.removeEventListener("resize", onResize);
     };
-  }, [slug, state?.name, refitTick]);
+  }, [slug, state?.name, refitTick, navigate]);
+
+  useEffect(() => {
+    radiusCirclesRef.current.forEach((circle) => {
+      circle.style.display = showRadius ? "" : "none";
+    });
+  }, [showRadius]);
 
   const title =
     state?.name ??
-    (ALIAS[slug] ??
-      normalize(slug).replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()));
+    ALIAS[slug] ??
+    normalize(slug)
+      .replace(/-/g, " ")
+      .replace(/^./, (c) => c.toUpperCase());
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       {/* Controles */}
-      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", gap: 8 }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          zIndex: 10,
+          display: "flex",
+          gap: 8,
+        }}
+      >
         <button onClick={() => navigate(-1)}>← Volver</button>
-        <button onClick={() => navigate(`/dashboard/${slug}`)}>Ver dashboard</button>
+        <button onClick={() => navigate(`/dashboard/${slug}`)}>
+          Ver dashboard
+        </button>
         <button onClick={() => setRefitTick((n) => n + 1)}>Re-centrar</button>
+
+        {/* 🔵 NUEVO: toggle circunferencias */}
+        <button onClick={() => setShowRadius((v) => !v)}>
+          {showRadius ? "Ocultar clusters" : "Mostrar clusters"}
+        </button>
       </div>
 
       {/* Error visible */}
       {error && (
-        <div style={{
-          position: "absolute", zIndex: 10, top: 12, right: 16,
-          background: "rgba(0,0,0,.7)", color: "#fff", padding: "6px 10px",
-          borderRadius: 6, maxWidth: 460, fontSize: 12,
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 10,
+            top: 12,
+            right: 16,
+            background: "rgba(0,0,0,.7)",
+            color: "#fff",
+            padding: "6px 10px",
+            borderRadius: 6,
+            maxWidth: 460,
+            fontSize: 12,
+          }}
+        >
           ⚠️ {error}
         </div>
       )}
@@ -273,8 +677,12 @@ export default function CountryMap() {
         <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
         <div
           style={{
-            position: "absolute", top: 12, right: 16,
-            color: "#00ff88", fontWeight: 700, fontSize: "1.1rem",
+            position: "absolute",
+            top: 12,
+            right: 16,
+            color: "#00ff88",
+            fontWeight: 700,
+            fontSize: "1.1rem",
             textShadow: "0 1px 2px rgba(0,0,0,.5)",
           }}
         >

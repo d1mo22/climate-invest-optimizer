@@ -33,6 +33,7 @@ function getMarkerColor(name: string) {
 type CsvRow = {
   id: string;
   name: string;
+  country: string;
   utm_north: string;
   utm_east: string;
 };
@@ -42,12 +43,12 @@ type CsvRow = {
 // ======================
 const UTM_ANCHORS: [number, number][] = [
   [-411926.644, 4926301.901], // Madrid
-  [295006.669, 4804084.443],  // Baleares
-  [-14221.956, 6711542.476],  // Londres
+  [295006.669, 4804084.443], // Baleares
+  [-14221.956, 6711542.476], // Londres
   [1492237.774, 6894699.801], // Berlín
   [2776129.989, 8437661.782], // Helsinki
   [1391092.885, 5146430.457], // Roma
-  [2220267.244, 6457488.29],  // Varsovia
+  [2220267.244, 6457488.29], // Varsovia
 ];
 
 const SVG_ANCHORS: [number, number][] = [
@@ -60,10 +61,7 @@ const SVG_ANCHORS: [number, number][] = [
   [645.2064208984375, 403.7024841308594],
 ];
 
-function affineFromN(
-  src: [number, number][],
-  dst: [number, number][]
-) {
+function affineFromN(src: [number, number][], dst: [number, number][]) {
   if (src.length !== dst.length) {
     throw new Error("src y dst deben tener la misma longitud");
   }
@@ -104,7 +102,9 @@ function affineFromN(
   const solve3 = (A: number[][], b: number[]) => {
     const dA = det(A);
     if (Math.abs(dA) < 1e-9) {
-      throw new Error("Sistema casi singular; puntos de ancla mal condicionados");
+      throw new Error(
+        "Sistema casi singular; puntos de ancla mal condicionados"
+      );
     }
     const repl = (col: number, vec: number[]) =>
       A.map((row, i) => row.map((v, j) => (j === col ? vec[i] : v)));
@@ -161,7 +161,9 @@ export default function Map() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const svg = containerRef.current.querySelector("svg") as SVGSVGElement | null;
+    const svg = containerRef.current.querySelector(
+      "svg"
+    ) as SVGSVGElement | null;
     if (!svg) return;
 
     // ---------- 1) Crear/asegurar viewport ----------
@@ -171,7 +173,11 @@ export default function Map() {
       viewport.setAttribute("id", "viewport");
       const children = Array.from(svg.childNodes);
       children.forEach((node) => {
-        if (node.nodeType === 1 && (node as Element).tagName.toLowerCase() === "defs") return;
+        if (
+          node.nodeType === 1 &&
+          (node as Element).tagName.toLowerCase() === "defs"
+        )
+          return;
         viewport!.appendChild(node);
       });
       svg.appendChild(viewport);
@@ -186,7 +192,9 @@ export default function Map() {
     }
 
     // ---------- 3) Capa de marcadores ----------
-    let markers = viewport.querySelector("#markers-layer") as SVGGElement | null;
+    let markers = viewport.querySelector(
+      "#markers-layer"
+    ) as SVGGElement | null;
     if (!markers) {
       markers = document.createElementNS("http://www.w3.org/2000/svg", "g");
       markers.setAttribute("id", "markers-layer");
@@ -212,7 +220,9 @@ export default function Map() {
 
     // ========== 4) CARGAR CSV (UTM) Y PINTAR ==========
     (async () => {
-      const rows = await fetchCSV("../../public/data/Cluster_rows_utm_simple.csv");
+      const rows = await fetchCSV(
+        "../../public/data/Cluster_rows_utm_simple.csv"
+      );
 
       const parsed = rows
         .map((r) => ({
@@ -230,7 +240,12 @@ export default function Map() {
       const vb =
         svg.viewBox && svg.viewBox.baseVal
           ? svg.viewBox.baseVal
-          : ({ x: 0, y: 0, width: svg.clientWidth || 1000, height: svg.clientHeight || 800 } as DOMRect);
+          : ({
+              x: 0,
+              y: 0,
+              width: svg.clientWidth || 1000,
+              height: svg.clientHeight || 800,
+            } as DOMRect);
 
       let projectFromUTM: (E: number, N: number) => { x: number; y: number };
 
@@ -266,7 +281,9 @@ export default function Map() {
           };
         }
       } else {
-        console.warn("Afinidad no configurada; usando proyección lineal UTM→viewBox");
+        console.warn(
+          "Afinidad no configurada; usando proyección lineal UTM→viewBox"
+        );
         let minE = Infinity,
           maxE = -Infinity,
           minN = Infinity,
@@ -300,7 +317,10 @@ export default function Map() {
         g.style.cursor = "pointer";
 
         // 🔵 Círculo de radio (centrado en el marker)
-        const radiusCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        const radiusCircle = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle"
+        );
         radiusCircle.setAttribute("cx", "0");
         radiusCircle.setAttribute("cy", "0");
         radiusCircle.setAttribute("r", String(MARKER_RADIUS_PX));
@@ -316,17 +336,26 @@ export default function Map() {
         const ICON_W = 24;
         const ICON_H = 24;
 
-        const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const svgIcon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg"
+        );
         svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
         svgIcon.setAttribute("width", String(ICON_W));
         svgIcon.setAttribute("height", String(ICON_H));
         svgIcon.setAttribute("x", String(-ICON_W / 2));
         svgIcon.setAttribute("y", String(-ICON_H * 0.85));
 
-        const gIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const gIcon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "g"
+        );
         gIcon.setAttribute("transform", PIN_GROUP_TRANSFORM);
 
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const path = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "path"
+        );
         path.setAttribute("d", PIN_PATH_D);
         path.setAttribute("fill", getMarkerColor(r.name));
         path.setAttribute("stroke", "#111");
@@ -399,7 +428,12 @@ export default function Map() {
       p.style.opacity = "1";
     };
 
-    const listeners: Array<{ p: SVGPathElement; enter: EventListener; move: EventListener; leave: EventListener }> = [];
+    const listeners: Array<{
+      p: SVGPathElement;
+      enter: EventListener;
+      move: EventListener;
+      leave: EventListener;
+    }> = [];
 
     paths.forEach((el) => {
       const p = el as SVGPathElement;
@@ -437,13 +471,19 @@ export default function Map() {
     let startPt: DOMPoint | null = null;
 
     const applyTransform = () => {
-      viewport!.setAttribute("transform", `translate(${tx}, ${ty}) scale(${scale})`);
+      viewport!.setAttribute(
+        "transform",
+        `translate(${tx}, ${ty}) scale(${scale})`
+      );
     };
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const dir = e.deltaY > 0 ? -1 : 1;
-      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale + dir * ZOOM_STEP));
+      const newScale = Math.max(
+        MIN_SCALE,
+        Math.min(MAX_SCALE, scale + dir * ZOOM_STEP)
+      );
       if (newScale === scale) return;
 
       const cursor = getSvgPoint(e);
@@ -503,12 +543,11 @@ export default function Map() {
 
   // 🔵 NUEVO: cuando cambien showRadius o radiusPx, actualizamos todos los círculos
   useEffect(() => {
-  radiusCirclesRef.current.forEach((circle) => {
-    circle.style.display = showRadius ? "" : "none";
-  });
-}, [showRadius]);
+    radiusCirclesRef.current.forEach((circle) => {
+      circle.style.display = showRadius ? "" : "none";
+    });
+  }, [showRadius]);
 
-  
   return (
     <div
       ref={containerRef}
@@ -525,26 +564,26 @@ export default function Map() {
     >
       {/* Barra de controles dentro del viewport */}
       <div
-  style={{
-    position: "absolute",
-    top: 12,
-    left: 12,
-    zIndex: 20,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "6px 10px",
-    borderRadius: 8,
-    background: "rgba(0,0,0,0.5)",
-    backdropFilter: "blur(4px)",
-  }}
->
-  <button onClick={() => navigate("/dashboards")}>Info</button>
+        style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "6px 10px",
+          borderRadius: 8,
+          background: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        <button onClick={() => navigate("/dashboards")}>Info</button>
 
-  <button onClick={() => setShowRadius((v) => !v)}>
-    {showRadius ? "Ocultar clusters" : "Mostrar clusters"}
-  </button>
-</div>
+        <button onClick={() => setShowRadius((v) => !v)}>
+          {showRadius ? "Ocultar clusters" : "Mostrar clusters"}
+        </button>
+      </div>
 
       {/* el SVG real */}
       <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
