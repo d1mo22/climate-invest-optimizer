@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   PageContainer,
   ProCard,
@@ -7,6 +7,7 @@ import {
 } from "@ant-design/pro-components";
 import { useNavigate } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
+import { Modal, Button, Tag } from "antd";
 import { slugify } from "../utils/slugify";
 
 // Add example stores for demonstration purposes
@@ -14,7 +15,7 @@ const exampleStores = [
   {
     slug: "tienda-1",
     tienda: "Tienda 1",
-    país: "España",
+    país: "Spain",
     inversión: 1.2,
     ROI: "15.0%",
     riesgosTotales: 5,
@@ -57,14 +58,17 @@ const exampleStores = [
 ];
 
 // Adjust StoreDashboard to show store-specific risks and metrics
-const storeData = exampleStores.find((store) => store.slug === "tienda-1") || exampleStores[0];
+const initialStore = exampleStores.find((store) => store.slug === "tienda-1") || exampleStores[0];
 
 export default function StoreDashboard() {
   const navigate = useNavigate();
+  const [currentStore, setCurrentStore] = useState(initialStore);
+  const [selectedRisk, setSelectedRisk] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Gauge % riesgos resueltos
-  const percentRiesgos = storeData.riesgosTotales
-    ? storeData.riesgosResueltos / storeData.riesgosTotales
+  const percentRiesgos = currentStore.riesgosTotales
+    ? currentStore.riesgosResueltos / currentStore.riesgosTotales
     : 0;
 
   // Update Gauge configuration to remove arrow and numbers, and reverse the range
@@ -87,25 +91,12 @@ export default function StoreDashboard() {
   };
 
   // Pie: Distribución de riesgos
-  const pieData = [
-    { name: "Resueltos", value: storeData.riesgosResueltos },
-    { name: "Pendientes", value: storeData.riesgosPendientes },
-  ];
-
-  const pieConfig = {
-    data: pieData,
-    angleField: "value",
-    colorField: "name",
-    color: ["#00ff88", "#ff4d4f"],
-    legend: { position: "bottom" as const },
-    label: { type: "inner", offset: "-30%", content: "{percentage}" },
-    interactions: [{ type: "element-active" }],
-  };
+  // (simple Resueltos/Pendientes pie removed — using column + riskTypeConfig instead)
 
   // Column: Riesgos (resueltos vs pendientes)
   const columnData = [
-    { tipo: "Resueltos", cantidad: storeData.riesgosResueltos },
-    { tipo: "Pendientes", cantidad: storeData.riesgosPendientes },
+    { tipo: "Resueltos", cantidad: currentStore.riesgosResueltos },
+    { tipo: "Pendientes", cantidad: currentStore.riesgosPendientes },
   ];
 
   const columnConfig = {
@@ -118,7 +109,7 @@ export default function StoreDashboard() {
   };
 
   // Risk distribution by type (Pie chart)
-  const risksByType = storeData.riesgos.reduce((acc, risk) => {
+  const risksByType = currentStore.riesgos.reduce((acc, risk) => {
     const existing = acc.find((r) => r.tipo === risk.tipo);
     if (existing) {
       existing.cantidad++;
@@ -138,7 +129,7 @@ export default function StoreDashboard() {
   };
 
   // Improved stores percentage (example)
-  const tiendasMejoradas = Math.round(storeData.inversión * 10);
+  const tiendasMejoradas = Math.round(currentStore.inversión * 10);
   const tiendasTotales = 20;
   const pctTiendasMejoradas = ((tiendasMejoradas / tiendasTotales) * 100).toFixed(1);
 
@@ -147,10 +138,10 @@ export default function StoreDashboard() {
   const areaData = years.map((year, i) => ({
     year: String(year),
     "Inversión (€M)": Math.round(
-      storeData.inversión * (1.2 - 0.2 * (i / (years.length - 1)))
+      currentStore.inversión * (1.2 - 0.2 * (i / (years.length - 1)))
     ),
     "Beneficios (€M)": Math.round(
-      storeData.beneficioAnual * (0.7 + 0.3 * (i / (years.length - 1)))
+      currentStore.beneficioAnual * (0.7 + 0.3 * (i / (years.length - 1)))
     ),
   }));
 
@@ -170,26 +161,50 @@ export default function StoreDashboard() {
     metrica: string;
     valor: string | number;
   }> = [
-    { key: "1", metrica: "Inversión total", valor: `${storeData.inversión}M€` },
-    { key: "2", metrica: "ROI", valor: storeData.ROI },
-    { key: "3", metrica: "Total ahorrado", valor: `${storeData.beneficioAnual}M€` },
+    { key: "1", metrica: "Inversión total", valor: `${currentStore.inversión}M€` },
+    { key: "2", metrica: "ROI", valor: currentStore.ROI },
+    { key: "3", metrica: "Total ahorrado", valor: `${currentStore.beneficioAnual}M€` },
     {
       key: "4",
       metrica: "Payback",
-      valor: `${(storeData.inversión / storeData.beneficioAnual).toFixed(1)} años`,
+      valor: `${(currentStore.inversión / currentStore.beneficioAnual).toFixed(1)} años`,
     },
-    { key: "5", metrica: "Riesgos totales", valor: storeData.riesgosTotales },
+    { key: "5", metrica: "Riesgos totales", valor: currentStore.riesgosTotales },
     {
       key: "6",
       metrica: "Riesgos resueltos",
-      valor: `${storeData.riesgosResueltos} (${storeData.pctRiesgosResueltos})`,
+      valor: `${currentStore.riesgosResueltos} (${currentStore.pctRiesgosResueltos})`,
     },
-    { key: "7", metrica: "Plan próximo año", valor: `${storeData.planNextYear}M€` },
-    { key: "8", metrica: "Plan 10 años", valor: `${storeData.plan10y}M€` },
+    { key: "7", metrica: "Plan próximo año", valor: `${currentStore.planNextYear}M€` },
+    { key: "8", metrica: "Plan 10 años", valor: `${currentStore.plan10y}M€` },
   ];
 
   // Adjust navigation and hierarchy for store -> country -> Europe
-  const countrySlug = slugify(storeData.país);
+  const countrySlug = slugify(currentStore.país);
+
+  function openRiskModal(risk: any) {
+    setSelectedRisk(risk);
+    setModalOpen(true);
+  }
+
+  function closeRiskModal() {
+    setSelectedRisk(null);
+    setModalOpen(false);
+  }
+
+  function markRiskResolved(id: number) {
+    const updated = { ...currentStore } as any;
+    const r = updated.riesgos.find((x: any) => x.id === id);
+    if (r && r.estado !== "Resuelto") {
+      r.estado = "Resuelto";
+      // update counts
+      updated.riesgosResueltos = Math.min(updated.riesgosTotales, (updated.riesgosResueltos || 0) + 1);
+      updated.riesgosPendientes = Math.max(0, (updated.riesgosPendientes || 0) - 1);
+      updated.pctRiesgosResueltos = `${((updated.riesgosResueltos / updated.riesgosTotales) * 100).toFixed(1)}%`;
+      setCurrentStore(updated);
+    }
+    closeRiskModal();
+  }
 
   // Move importanceOrder definition inside the component scope
   const importanceOrder: Record<string, number> = { Alta: 1, Media: 2, Baja: 3 };
@@ -197,7 +212,7 @@ export default function StoreDashboard() {
   return (
     <PageContainer
       header={{
-        title: `📊 ${storeData.tienda} — Dashboard`,
+        title: `📊 ${currentStore.tienda} — Dashboard`,
         extra: [
           <button key="country" onClick={() => navigate(`/country/${countrySlug}`)}>
             Ver País
@@ -212,11 +227,11 @@ export default function StoreDashboard() {
           <div style={{ display: "flex", gap: 24 }}>
             <div>
               <div style={{ opacity: 0.65, fontSize: 12 }}>País</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{storeData.país}</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{currentStore.país}</div>
             </div>
             <div>
               <div style={{ opacity: 0.65, fontSize: 12 }}>Tienda</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{storeData.tienda}</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{currentStore.tienda}</div>
             </div>
           </div>
         </ProCard>
@@ -228,7 +243,7 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "Inversión (€M)",
-                value: storeData.inversión,
+                value: currentStore.inversión,
                 precision: 1,
               }}
               style={{ minWidth: 220 }}
@@ -237,7 +252,7 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "ROI",
-                value: parseFloat(storeData.ROI),
+                value: parseFloat(currentStore.ROI),
                 precision: 1,
                 suffix: "%",
               }}
@@ -247,7 +262,7 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "Payback",
-                value: (storeData.inversión / storeData.beneficioAnual).toFixed(1),
+                value: (currentStore.inversión / currentStore.beneficioAnual).toFixed(1),
                 suffix: "años",
               }}
               style={{ minWidth: 220 }}
@@ -280,7 +295,7 @@ export default function StoreDashboard() {
                 fontSize: 12,
               }}
             >
-              {storeData.riesgosResueltos} / {storeData.riesgosTotales} riesgos resueltos
+              {currentStore.riesgosResueltos} / {currentStore.riesgosTotales} riesgos resueltos
             </div>
           </ProCard>
         </ProCard>
@@ -350,7 +365,7 @@ export default function StoreDashboard() {
         <ProCard bordered title="⚠️ Riesgos Pendientes de Solventar" size="small" style={{ marginTop: 12 }}>
           <ProTable
             rowKey="id"
-            dataSource={storeData.riesgos.filter((r) => r.estado === "Pendiente")}
+            dataSource={currentStore.riesgos.filter((r) => r.estado === "Pendiente")}
             search={false}
             options={false}
             pagination={false}
@@ -386,7 +401,7 @@ export default function StoreDashboard() {
         <ProCard bordered title="📋 Análisis Completo de Riesgos" size="small" style={{ marginTop: 12 }}>
           <ProTable
             rowKey="id"
-            dataSource={storeData.riesgos}
+            dataSource={currentStore.riesgos}
             search={false}
             options={false}
             pagination={{ pageSize: 5 }}
@@ -430,11 +445,71 @@ export default function StoreDashboard() {
                   </span>
                 ),
               },
+              {
+                title: "Acciones",
+                dataIndex: "actions",
+                width: "15%",
+                render: (_, record) => (
+                  <Button type="link" onClick={() => openRiskModal(record)}>
+                    Ver solución
+                  </Button>
+                ),
+              },
             ]}
             toolBarRender={false}
           />
         </ProCard>
       </ProCard>
+
+      <Modal
+        title={selectedRisk ? `Solución: ${selectedRisk.tipo}` : "Solución"}
+        open={modalOpen}
+        onCancel={closeRiskModal}
+        footer={null}
+      >
+        {selectedRisk ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>{selectedRisk.descripcion}</div>
+              <div style={{ marginTop: 6 }}>
+                <Tag color={selectedRisk.importancia === "Alta" ? "red" : selectedRisk.importancia === "Media" ? "orange" : "green"}>
+                  {selectedRisk.importancia}
+                </Tag>
+                <Tag>{selectedRisk.estado}</Tag>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Plan de acción</div>
+              <ol style={{ marginLeft: 18 }}>
+                {(selectedRisk.planSteps || []).map((s: string, i: number) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 600 }}>Recursos</div>
+              <div>{selectedRisk.recursos || "—"}</div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 600 }}>Tiempo estimado</div>
+              <div>{selectedRisk.tiempoEstimado || "—"}</div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
+              {selectedRisk.estado !== "Resuelto" && (
+                <Button type="primary" onClick={() => markRiskResolved(selectedRisk.id)}>
+                  Marcar Resuelto
+                </Button>
+              )}
+              <Button onClick={closeRiskModal}>Cerrar</Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
     </PageContainer>
   );
 }
