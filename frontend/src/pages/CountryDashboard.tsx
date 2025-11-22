@@ -396,7 +396,7 @@ export default function CountryDashboard() {
   }> = [
     { key: "1", metrica: "Inversión total", valor: `${data.inversión}M€` },
     { key: "2", metrica: "ROI", valor: data.ROI },
-    { key: "3", metrica: "Beneficio anual", valor: `${data.beneficioAnual}M€` },
+    { key: "3", metrica: "Total ahorrado", valor: `${data.beneficioAnual}M€` },
     {
       key: "4",
       metrica: "Payback",
@@ -443,7 +443,7 @@ export default function CountryDashboard() {
                 value: data.inversión,
                 precision: 0,
               }}
-              style={{ minWidth: 200 }}
+              style={{ minWidth: 220 }}
             />
             <StatisticCard
               bordered
@@ -453,7 +453,7 @@ export default function CountryDashboard() {
                 precision: 1,
                 suffix: "%",
               }}
-              style={{ minWidth: 200 }}
+              style={{ minWidth: 220}}
             />
             <StatisticCard
               bordered
@@ -463,7 +463,7 @@ export default function CountryDashboard() {
                 precision: 1,
                 suffix: "%",
               }}
-              style={{ minWidth: 200 }}
+              style={{ minWidth: 220 }}
             />
             <StatisticCard
               bordered
@@ -472,14 +472,14 @@ export default function CountryDashboard() {
                 value: (data.inversión / data.beneficioAnual).toFixed(1),
                 suffix: "años",
               }}
-              style={{ minWidth: 200 }}
+              style={{ minWidth: 220 }}
             />
           </ProCard>
 
           <ProCard
             colSpan="30%"
             bordered
-            style={{ display: "grid", placeItems: "center" }}
+            style={{ display: "grid"}}
           >
             <div style={{ width: 180, height: 180 }}>
               <Gauge {...gaugeConfig} />
@@ -498,25 +498,38 @@ export default function CountryDashboard() {
         </ProCard>
 
         {/* Gráficos */}
-        <ProCard split="vertical" ghost>
+        <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
           <ProCard
             colSpan="50%"
             bordered
             title="Capex vs Beneficios (2026–2035)"
             size="small"
+            style={{ height: "100%" }}
+            bodyStyle={{ padding: 16, height: "100%" }}
           >
             <Area {...areaConfig} />
           </ProCard>
 
-          <ProCard colSpan="50%" ghost>
-            <ProCard bordered title="Estado de riesgos" size="small">
+          <ProCard
+            colSpan="50%"
+            ghost
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <ProCard
+              bordered
+              title="Estado de riesgos"
+              size="small"
+              style={{ flex: 1 }}
+              bodyStyle={{ padding: 16, height: "100%" }}
+            >
               <Column {...columnConfig} />
             </ProCard>
             <ProCard
               bordered
               title="Tiendas mejoradas"
               size="small"
-              style={{ marginTop: 12 }}
+              style={{ flex: 1 }}
+              bodyStyle={{ padding: 16, height: "100%" }}
             >
               <Pie {...pieConfig} />
             </ProCard>
@@ -552,18 +565,30 @@ export default function CountryDashboard() {
           size="small"
           style={{ marginTop: 12 }}
         >
-          <ProCard split="vertical" ghost>
+          <ProCard split="vertical" ghost style={{ display: "flex", gap: 12, alignItems: "stretch", height: "100%" }}>
             <ProCard
               colSpan="50%"
               bordered
               title="Distribución por tipo"
               size="small"
+              style={{ flex: 1, height: "100%" }}
+              bodyStyle={{ padding: 16, display: "flex", justifyContent: "center", alignItems: "center" }}
             >
               <Pie {...riskTypeConfig} />
             </ProCard>
 
-            <ProCard colSpan="50%" ghost>
-              <ProCard bordered title="Riesgos más frecuentes" size="small">
+            <ProCard
+              colSpan="50%"
+              ghost
+              style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}
+            >
+              <ProCard
+                bordered
+                title="Riesgos más frecuentes"
+                size="small"
+                style={{ flex: 1, height: "100%" }}
+                bodyStyle={{ padding: 16, display: "flex", flexDirection: "column" }}
+              >
                 <ProTable<(typeof mostFrequentRisks)[0]>
                   rowKey="id"
                   dataSource={mostFrequentRisks}
@@ -573,11 +598,7 @@ export default function CountryDashboard() {
                   size="small"
                   columns={[
                     { title: "Tipo", dataIndex: "tipo", width: "30%" },
-                    {
-                      title: "Descripción",
-                      dataIndex: "descripcion",
-                      width: "40%",
-                    },
+                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
                     {
                       title: "Frecuencia",
                       dataIndex: "frecuencia",
@@ -601,11 +622,13 @@ export default function CountryDashboard() {
                   toolBarRender={false}
                 />
               </ProCard>
+
               <ProCard
                 bordered
                 title="Riesgos más expuestos"
                 size="small"
-                style={{ marginTop: 12 }}
+                style={{ flex: 1, height: "100%" }}
+                bodyStyle={{ padding: 16, display: "flex", flexDirection: "column" }}
               >
                 <ProTable<(typeof mostExposedRisks)[0]>
                   rowKey="id"
@@ -616,11 +639,7 @@ export default function CountryDashboard() {
                   size="small"
                   columns={[
                     { title: "Tipo", dataIndex: "tipo", width: "25%" },
-                    {
-                      title: "Descripción",
-                      dataIndex: "descripcion",
-                      width: "40%",
-                    },
+                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
                     {
                       title: "Tiendas afectadas",
                       dataIndex: "tiendas_afectadas",
