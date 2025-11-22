@@ -479,7 +479,7 @@ export default function CountryDashboard() {
           <ProCard
             colSpan="30%"
             bordered
-            style={{ display: "grid"}}
+            style={{ display: "grid", placeItems: "center" }}
           >
             <div style={{ width: 180, height: 180 }}>
               <Gauge {...gaugeConfig} />

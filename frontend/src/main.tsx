@@ -10,6 +10,7 @@ import Map from "./pages/Map";
 import Dashboards from "./pages/DashBoards";
 import CountryDashboard from "./pages/CountryDashboard";
 import CountryMap from "./pages/CountryMap"; // 👈 IMPORTA ESTO
+import StoreDashboard from "./pages/StoreDashboard";
 import "antd/dist/reset.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/dashboards" element={<Dashboards />} />
             <Route path="/dashboard/:slug" element={<CountryDashboard />} />
             <Route path="/country/:slug" element={<CountryMap />} /> {/* 👈 AQUI */}
+            <Route path="/store/:storeSlug" element={<StoreDashboard />} />
             <Route path="*" element={<div style={{ color: "#fff" }}>404</div>} />
           </Route>
         </Routes>
