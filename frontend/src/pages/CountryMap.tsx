@@ -232,6 +232,9 @@ export default function CountryMap() {
   const [error, setError] = useState<string | null>(null);
   const [refitTick, setRefitTick] = useState(0);
 
+  // Lista de tiendas parseadas disponible para el sidebar
+  const [storesList, setStoresList] = useState<Array<CsvRow & { N: number; E: number }>>([]);
+
   // 🔵 NUEVO: toggle de circunferencias
   const [showRadius, setShowRadius] = useState(false);
   const [showStores, setShowStores] = useState(true);
@@ -376,6 +379,8 @@ export default function CountryMap() {
           }))
           .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
           .filter((r) => countriesMatch(r.country || "", targetCountryName));
+        // Guardamos la lista para el sidebar
+        setStoresList(parsedStores);
         
         console.log("DEBUG tiendas:", {
           targetCountryName,
@@ -460,6 +465,8 @@ export default function CountryMap() {
           const { x, y } = projectFromUTM(r.E, r.N);
 
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          // identificador para poder buscar desde el sidebar
+          g.setAttribute("data-store-id", String(r.id));
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
 
@@ -555,8 +562,11 @@ export default function CountryMap() {
           svgIcon.appendChild(gIcon);
           g.appendChild(svgIcon);
 
-          // Tooltip simple para tienda
-          g.addEventListener("click", () => console.log("Tienda:", r.name));
+          // Tooltip simple para tienda + click desde mapa
+          g.addEventListener("click", (e) => {
+            e.stopPropagation();
+            navigate(`/store/${r.id}`);
+          });
           
           // Añadir a la capa de TIENDAS, no a la de markers
           storesLayer!.appendChild(g);
@@ -604,6 +614,39 @@ export default function CountryMap() {
       "transform",
       `translate(${vbCx}, ${vbCy}) scale(${baseScale}) translate(${-cx}, ${-cy})`
     );
+
+    // ---- Función para resaltar / pulsar visualmente una tienda desde el sidebar
+    const focusOnStore = (id: string) => {
+      try {
+        const svgEl = container.querySelector("svg") as SVGSVGElement | null;
+        if (!svgEl) return;
+        const g = svgEl.querySelector(`g[data-store-id="${CSS.escape(id)}"]`) as SVGGElement | null;
+        if (!g) return;
+        // Añadimos un círculo pulso temporal
+        const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        pulse.setAttribute("cx", "0");
+        pulse.setAttribute("cy", "0");
+        pulse.setAttribute("r", "6");
+        pulse.setAttribute("fill", "rgba(255,140,0,0.9)");
+        pulse.setAttribute("stroke", "#fff");
+        pulse.setAttribute("stroke-width", "2");
+        pulse.style.transition = "transform 300ms ease, opacity 800ms ease";
+        pulse.style.transformOrigin = "center";
+        g.appendChild(pulse);
+        // animación: escalado y fade
+        requestAnimationFrame(() => {
+          pulse.style.transform = "scale(3)";
+          pulse.style.opacity = "0";
+        });
+        setTimeout(() => pulse.remove(), 900);
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    // Exponemos la función en el elemento container para que el sidebar (fuera del effect)
+    // pueda llamarla: lo hacemos mediante propiedad personalizada.
+    (container as any).__focusOnStore = focusOnStore;
 
     // ===== 5) Extra transform (pan/zoom) en espacio "cámara" + rAF
     let z = 1;
@@ -774,31 +817,89 @@ export default function CountryMap() {
         </div>
       )}
 
-      {/* Contenedor del SVG */}
-      <div
-        ref={containerRef}
-        style={{
-          width: "100vw",
-          height: "100vh",
-          background: "#272424",
-          overflow: "hidden",
-          userSelect: "none",
-        }}
-      >
-        <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
+      {/* Layout: mapa a la izquierda, sidebar de tiendas a la derecha */}
+      <div style={{ display: "flex", width: "100vw", height: "100vh" }}>
         <div
+          ref={containerRef}
           style={{
-            position: "absolute",
-            top: 12,
-            right: 16,
-            color: "#00ff88",
-            fontWeight: 700,
-            fontSize: "1.1rem",
-            textShadow: "0 1px 2px rgba(0,0,0,.5)",
+            flex: 1,
+            height: "100%",
+            background: "#272424",
+            overflow: "hidden",
+            userSelect: "none",
           }}
         >
-          {title}
+          <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 16,
+              color: "#00ff88",
+              fontWeight: 700,
+              fontSize: "1.1rem",
+              textShadow: "0 1px 2px rgba(0,0,0,.5)",
+            }}
+          >
+            {title}
+          </div>
         </div>
+
+        {/* Sidebar: listado de tiendas */}
+        <aside
+          style={{
+            width: 320,
+            height: "100%",
+            background: "#0f0f0f",
+            color: "#fff",
+            padding: 12,
+            boxSizing: "border-box",
+            overflowY: "auto",
+            borderLeft: "1px solid rgba(255,255,255,0.04)",
+          }}
+        >
+
+          {storesList.length === 0 ? (
+            <div style={{ color: "#999", fontSize: 13 }}>
+              No hay tiendas cargadas para este país.
+            </div>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {storesList.map((s) => (
+                <li key={s.id} style={{ padding: "8px 6px", borderBottom: "1px solid rgba(255,255,255,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ cursor: "pointer" }} onClick={() => {
+                    // llamar a la función creada dentro del effect
+                    const c = containerRef.current as any;
+                    c?.__focusOnStore?.(String(s.id));
+                  }}>
+                    <div style={{ fontSize: 14 }}>{s.name}</div>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>{`${Math.round(s.N)} , ${Math.round(s.E)}`}</div>
+                  </div>
+                  <div style={{ marginLeft: "10px" }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/store/${s.id}`);
+                      }}
+                      title="Ver Dashboard"
+                      style={{
+                        background: "#333",
+                        border: "1px solid #555",
+                        color: "white",
+                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                      }}
+                    >
+                      📊
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
       </div>
     </div>
   );

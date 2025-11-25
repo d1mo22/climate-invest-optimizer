@@ -1,71 +1,138 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import {
   PageContainer,
   ProCard,
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
-import { slugify } from "../utils/slugify";
+import { slugify, COUNTRY_ALIAS } from "../utils/slugify";
 
-// Add example stores for demonstration purposes
-const exampleStores = [
-  {
-    slug: "tienda-1",
-    tienda: "Tienda 1",
-    país: "España",
-    inversión: 1.2,
-    ROI: "15.0%",
-    riesgosTotales: 5,
-    riesgosResueltos: 4,
-    riesgosPendientes: 1,
-    pctRiesgosResueltos: "80.0%",
-    beneficioAnual: 0.18,
-    planNextYear: 0.5,
-    plan10y: 3.5,
-    riesgos: [
-      { id: 1, tipo: "Energético", descripcion: "Fallo en suministro eléctrico", estado: "Resuelto", importancia: "Alta", tiendas_afectadas: 3 },
-      { id: 2, tipo: "Climático", descripcion: "Inundaciones", estado: "Resuelto", importancia: "Media", tiendas_afectadas: 2 },
-      { id: 3, tipo: "Operacional", descripcion: "Fallo en sistemas HVAC", estado: "Pendiente", importancia: "Alta", tiendas_afectadas: 1 },
-      { id: 4, tipo: "Regulatorio", descripcion: "Normativa de eficiencia", estado: "Resuelto", importancia: "Baja", tiendas_afectadas: 1 },
-      { id: 5, tipo: "Financiero", descripcion: "Fluctuaciones en divisas", estado: "Pendiente", importancia: "Media", tiendas_afectadas: 2 },
-    ],
-  },
-  {
-    slug: "tienda-2",
-    tienda: "Tienda 2",
-    país: "Francia",
-    inversión: 1.5,
-    ROI: "12.0%",
-    riesgosTotales: 6,
-    riesgosResueltos: 5,
-    riesgosPendientes: 1,
-    pctRiesgosResueltos: "83.3%",
-    beneficioAnual: 0.2,
-    planNextYear: 0.6,
-    plan10y: 4.0,
-    riesgos: [
-      { id: 1, tipo: "Energético", descripcion: "Fallo en suministro eléctrico", estado: "Resuelto", importancia: "Alta", tiendas_afectadas: 3 },
-      { id: 2, tipo: "Climático", descripcion: "Olas de calor", estado: "Resuelto", importancia: "Media", tiendas_afectadas: 2 },
-      { id: 3, tipo: "Operacional", descripcion: "Fallo en sistemas HVAC", estado: "Pendiente", importancia: "Alta", tiendas_afectadas: 1 },
-      { id: 4, tipo: "Regulatorio", descripcion: "Normativa de etiquetado", estado: "Resuelto", importancia: "Baja", tiendas_afectadas: 1 },
-      { id: 5, tipo: "Financiero", descripcion: "Fluctuaciones en divisas", estado: "Resuelto", importancia: "Media", tiendas_afectadas: 2 },
-      { id: 6, tipo: "Reputacional", descripcion: "Impacto ambiental", estado: "Pendiente", importancia: "Alta", tiendas_afectadas: 3 },
-    ],
-  },
+// Tipo de datos del CSV
+type StoreCsvRow = {
+  id: string;
+  slug: string;
+  tienda: string;
+  pais: string;
+  inversion: string;
+  roi: string;
+  riesgos_totales: string;
+  riesgos_resueltos: string;
+  riesgos_pendientes: string;
+  beneficio_anual: string;
+  plan_next_year: string;
+  plan_10y: string;
+};
+
+// Tipo extendido con riesgos (generados o hardcoded)
+type StoreData = StoreCsvRow & {
+  riesgos: Array<{
+    id: number;
+    tipo: string;
+    descripcion: string;
+    estado: string;
+    importancia: string;
+    tiendas_afectadas: number;
+  }>;
+  pctRiesgosResueltos: string;
+};
+
+// Riesgos de ejemplo para rellenar
+const EXAMPLE_RISKS = [
+  { id: 1, tipo: "Energético", descripcion: "Fallo en suministro eléctrico", estado: "Resuelto", importancia: "Alta", tiendas_afectadas: 3 },
+  { id: 2, tipo: "Climático", descripcion: "Inundaciones", estado: "Resuelto", importancia: "Media", tiendas_afectadas: 2 },
+  { id: 3, tipo: "Operacional", descripcion: "Fallo en sistemas HVAC", estado: "Pendiente", importancia: "Alta", tiendas_afectadas: 1 },
+  { id: 4, tipo: "Regulatorio", descripcion: "Normativa de eficiencia", estado: "Resuelto", importancia: "Baja", tiendas_afectadas: 1 },
+  { id: 5, tipo: "Financiero", descripcion: "Fluctuaciones en divisas", estado: "Pendiente", importancia: "Media", tiendas_afectadas: 2 },
+  { id: 6, tipo: "Reputacional", descripcion: "Impacto ambiental", estado: "Pendiente", importancia: "Alta", tiendas_afectadas: 3 },
 ];
 
-// Adjust StoreDashboard to show store-specific risks and metrics
-const storeData = exampleStores.find((store) => store.slug === "tienda-1") || exampleStores[0];
+async function fetchStoreData(slug: string): Promise<StoreData | null> {
+  try {
+    const response = await fetch("/data/Store_details.csv");
+    const text = await response.text();
+    const [headerLine, ...lines] = text.trim().split(/\r?\n/);
+    const headers = headerLine.split(",").map(h => h.trim());
+
+    const rows = lines.map(line => {
+      const values = line.split(",").map(v => v.trim());
+      const row: any = {};
+      headers.forEach((h, i) => {
+        row[h] = values[i];
+      });
+      return row as StoreCsvRow;
+    });
+
+    const found = rows.find(r => r.slug === slug || String(r.id) === slug);
+    if (!found) return null;
+
+    // Generar riesgos aleatorios basados en los totales
+    const total = parseInt(found.riesgos_totales, 10) || 5;
+    const resueltos = parseInt(found.riesgos_resueltos, 10) || 0;
+    const pendientes = parseInt(found.riesgos_pendientes, 10) || 0;
+    
+    // Creamos una lista de riesgos ficticia que coincida con los números
+    const riesgos = [];
+    for (let i = 0; i < resueltos; i++) {
+      const base = EXAMPLE_RISKS[i % EXAMPLE_RISKS.length];
+      riesgos.push({ ...base, id: i + 1, estado: "Resuelto" });
+    }
+    for (let i = 0; i < pendientes; i++) {
+      const base = EXAMPLE_RISKS[(resueltos + i) % EXAMPLE_RISKS.length];
+      riesgos.push({ ...base, id: resueltos + i + 1, estado: "Pendiente" });
+    }
+
+    // Calcular porcentaje
+    const pct = total > 0 ? ((resueltos / total) * 100).toFixed(1) + "%" : "0%";
+
+    return {
+      ...found,
+      riesgos,
+      pctRiesgosResueltos: pct
+    };
+  } catch (error) {
+    console.error("Error loading store data:", error);
+    return null;
+  }
+}
 
 export default function StoreDashboard() {
   const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug: string }>();
+  const [storeData, setStoreData] = useState<StoreData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (storeSlug) {
+      setLoading(true);
+      fetchStoreData(storeSlug).then(data => {
+        setStoreData(data);
+        setLoading(false);
+      });
+    }
+  }, [storeSlug]);
+
+  if (loading) {
+    return <PageContainer><div style={{ padding: 24 }}>Cargando datos de la tienda...</div></PageContainer>;
+  }
+
+  if (!storeData) {
+    return <PageContainer><div style={{ padding: 24 }}>No se encontró la tienda "{storeSlug}"</div></PageContainer>;
+  }
+
+  // Parse numeric values
+  const inversion = parseFloat(storeData.inversion);
+  const beneficioAnual = parseFloat(storeData.beneficio_anual);
+  const roiVal = parseFloat(storeData.roi.replace("%", ""));
+  const riesgosTotales = parseInt(storeData.riesgos_totales, 10);
+  const riesgosResueltos = parseInt(storeData.riesgos_resueltos, 10);
+  const riesgosPendientes = parseInt(storeData.riesgos_pendientes, 10);
+  const planNextYear = parseFloat(storeData.plan_next_year);
+  const plan10y = parseFloat(storeData.plan_10y);
 
   // Gauge % riesgos resueltos
-  const percentRiesgos = storeData.riesgosTotales
-    ? storeData.riesgosResueltos / storeData.riesgosTotales
-    : 0;
+  const percentRiesgos = riesgosTotales ? riesgosResueltos / riesgosTotales : 0;
 
   // Update Gauge configuration to remove arrow and numbers, and reverse the range
   const gaugeConfig = {
@@ -86,26 +153,12 @@ export default function StoreDashboard() {
     },
   };
 
-  // Pie: Distribución de riesgos
-  const pieData = [
-    { name: "Resueltos", value: storeData.riesgosResueltos },
-    { name: "Pendientes", value: storeData.riesgosPendientes },
-  ];
 
-  const pieConfig = {
-    data: pieData,
-    angleField: "value",
-    colorField: "name",
-    color: ["#00ff88", "#ff4d4f"],
-    legend: { position: "bottom" as const },
-    label: { type: "inner", offset: "-30%", content: "{percentage}" },
-    interactions: [{ type: "element-active" }],
-  };
 
   // Column: Riesgos (resueltos vs pendientes)
   const columnData = [
-    { tipo: "Resueltos", cantidad: storeData.riesgosResueltos },
-    { tipo: "Pendientes", cantidad: storeData.riesgosPendientes },
+    { tipo: "Resueltos", cantidad: riesgosResueltos },
+    { tipo: "Pendientes", cantidad: riesgosPendientes },
   ];
 
   const columnConfig = {
@@ -138,7 +191,7 @@ export default function StoreDashboard() {
   };
 
   // Improved stores percentage (example)
-  const tiendasMejoradas = Math.round(storeData.inversión * 10);
+  const tiendasMejoradas = Math.round(inversion * 10);
   const tiendasTotales = 20;
   const pctTiendasMejoradas = ((tiendasMejoradas / tiendasTotales) * 100).toFixed(1);
 
@@ -147,10 +200,10 @@ export default function StoreDashboard() {
   const areaData = years.map((year, i) => ({
     year: String(year),
     "Inversión (€M)": Math.round(
-      storeData.inversión * (1.2 - 0.2 * (i / (years.length - 1)))
+      inversion * (1.2 - 0.2 * (i / (years.length - 1)))
     ),
     "Beneficios (€M)": Math.round(
-      storeData.beneficioAnual * (0.7 + 0.3 * (i / (years.length - 1)))
+      beneficioAnual * (0.7 + 0.3 * (i / (years.length - 1)))
     ),
   }));
 
@@ -170,26 +223,31 @@ export default function StoreDashboard() {
     metrica: string;
     valor: string | number;
   }> = [
-    { key: "1", metrica: "Inversión total", valor: `${storeData.inversión}M€` },
-    { key: "2", metrica: "ROI", valor: storeData.ROI },
-    { key: "3", metrica: "Total ahorrado", valor: `${storeData.beneficioAnual}M€` },
+    { key: "1", metrica: "Inversión total", valor: `${inversion}M€` },
+    { key: "2", metrica: "ROI", valor: storeData.roi },
+    { key: "3", metrica: "Total ahorrado", valor: `${beneficioAnual}M€` },
     {
       key: "4",
       metrica: "Payback",
-      valor: `${(storeData.inversión / storeData.beneficioAnual).toFixed(1)} años`,
+      valor: `${(inversion / beneficioAnual).toFixed(1)} años`,
     },
-    { key: "5", metrica: "Riesgos totales", valor: storeData.riesgosTotales },
+    { key: "5", metrica: "Riesgos totales", valor: riesgosTotales },
     {
       key: "6",
       metrica: "Riesgos resueltos",
-      valor: `${storeData.riesgosResueltos} (${storeData.pctRiesgosResueltos})`,
+      valor: `${riesgosResueltos} (${storeData.pctRiesgosResueltos})`,
     },
-    { key: "7", metrica: "Plan próximo año", valor: `${storeData.planNextYear}M€` },
-    { key: "8", metrica: "Plan 10 años", valor: `${storeData.plan10y}M€` },
+    { key: "7", metrica: "Plan próximo año", valor: `${planNextYear}M€` },
+    { key: "8", metrica: "Plan 10 años", valor: `${plan10y}M€` },
   ];
 
   // Adjust navigation and hierarchy for store -> country -> Europe
-  const countrySlug = slugify(storeData.país);
+  const findSlugForCountry = (countryName: string) => {
+    const normalizedName = countryName.trim();
+    const entry = Object.entries(COUNTRY_ALIAS).find(([, val]) => val.toLowerCase() === normalizedName.toLowerCase());
+    return entry ? entry[0] : slugify(normalizedName);
+  };
+  const countrySlug = findSlugForCountry(storeData.pais);
 
   // Move importanceOrder definition inside the component scope
   const importanceOrder: Record<string, number> = { Alta: 1, Media: 2, Baja: 3 };
@@ -212,7 +270,7 @@ export default function StoreDashboard() {
           <div style={{ display: "flex", gap: 24 }}>
             <div>
               <div style={{ opacity: 0.65, fontSize: 12 }}>País</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{storeData.país}</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{storeData.pais}</div>
             </div>
             <div>
               <div style={{ opacity: 0.65, fontSize: 12 }}>Tienda</div>
@@ -228,7 +286,7 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "Inversión (€M)",
-                value: storeData.inversión,
+                value: inversion,
                 precision: 1,
               }}
               style={{ minWidth: 220 }}
@@ -237,7 +295,7 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "ROI",
-                value: parseFloat(storeData.ROI),
+                value: roiVal,
                 precision: 1,
                 suffix: "%",
               }}
@@ -247,18 +305,8 @@ export default function StoreDashboard() {
               bordered
               statistic={{
                 title: "Payback",
-                value: (storeData.inversión / storeData.beneficioAnual).toFixed(1),
+                value: (inversion / beneficioAnual).toFixed(1),
                 suffix: "años",
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Tiendas mejoradas",
-                value: parseFloat(pctTiendasMejoradas),
-                precision: 1,
-                suffix: "%",
               }}
               style={{ minWidth: 220 }}
             />
@@ -280,7 +328,7 @@ export default function StoreDashboard() {
                 fontSize: 12,
               }}
             >
-              {storeData.riesgosResueltos} / {storeData.riesgosTotales} riesgos resueltos
+              {riesgosResueltos} / {riesgosTotales} riesgos resueltos
             </div>
           </ProCard>
         </ProCard>
