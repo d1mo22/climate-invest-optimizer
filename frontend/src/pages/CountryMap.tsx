@@ -15,6 +15,31 @@ const normalize = (s: string) =>
 
 const slugify = (s: string) => normalize(s).replace(/\s+/g, "-");
 
+// Mapeo de nombres de país: inglés <-> español (bidireccional)
+const COUNTRY_NAMES: Record<string, string[]> = {
+  "Spain": ["Spain", "España", "spain", "españa"],
+  "Germany": ["Germany", "Alemania", "germany", "alemania"],
+  "France": ["France", "Francia", "france", "francia"],
+  "Italy": ["Italy", "Italia", "italy", "italia"],
+  "United Kingdom": ["United Kingdom", "Reino Unido", "united kingdom", "reino unido"],
+  "Portugal": ["Portugal", "portugal"],
+};
+
+// Función para comparar países ignorando idioma
+const countriesMatch = (a: string, b: string): boolean => {
+  const aNorm = a.trim().toLowerCase();
+  const bNorm = b.trim().toLowerCase();
+  if (aNorm === bNorm) return true;
+  
+  for (const variants of Object.values(COUNTRY_NAMES)) {
+    const lowVariants = variants.map(v => v.toLowerCase());
+    if (lowVariants.includes(aNorm) && lowVariants.includes(bNorm)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const ALIAS: Record<string, string> = {
   spain: "España",
   germany: "Alemania",
@@ -209,9 +234,11 @@ export default function CountryMap() {
 
   // 🔵 NUEVO: toggle de circunferencias
   const [showRadius, setShowRadius] = useState(false);
+  const [showStores, setShowStores] = useState(true);
 
   // 🔵 NUEVO: referencia a todos los círculos para poder enseñar/ocultar
   const radiusCirclesRef = useRef<SVGCircleElement[]>([]);
+  const storesRef = useRef<SVGGElement[]>([]);
 
   useEffect(() => {
     setError(null);
@@ -265,6 +292,17 @@ export default function CountryMap() {
       markersLayer.innerHTML = "";
     }
 
+    // ===== 1.6) Capa de TIENDAS (Stores) =====
+    // Creamos una capa separada para que estén ordenadas y sea fácil ocultarlas
+    let storesLayer = viewport.querySelector("#stores-layer") as SVGGElement | null;
+    if (!storesLayer) {
+      storesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      storesLayer.setAttribute("id", "stores-layer");
+      viewport.appendChild(storesLayer);
+    } else {
+      storesLayer.innerHTML = "";
+    }
+
     // ===== 2) Encontrar país
     const incomingName = state?.name;
     const aliasName = ALIAS[slug] ?? null;
@@ -309,29 +347,45 @@ export default function CountryMap() {
 
     // ===== 3.5) Dibujar markers (mismo CSV que en Map.tsx) =====
     radiusCirclesRef.current = [];
+    storesRef.current = [];
     (async () => {
+      //try {
+      //  const rows = await fetchCSV(
+      //    "../../public/data/Cluster_rows_utm_simple.csv"
+      //  );
       try {
-        const rows = await fetchCSV(
-          "../../public/data/Cluster_rows_utm_simple.csv"
-        );
-        const parsedRaw = rows
+        // A) Cargar CLUSTERS y TIENDAS en paralelo
+        const [clusterRows, storeRows] = await Promise.all([
+          fetchCSV("/data/Cluster_rows_utm_simple.csv"),
+          fetchCSV("/data/Store_rows_utm_simple.csv"),
+        ]);
+        const parsedClusters = clusterRows
           .map((r) => ({
             ...r,
             N: parseFloat(r.utm_north),
             E: parseFloat(r.utm_east),
           }))
-          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E));
+          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
+          .filter((r) => countriesMatch(r.country || "", targetCountryName));
 
-        // 🔴 NUEVO: filtrar por país del SVG
-        const parsed = parsedRaw.filter(
-          (r) => (r.country || "").trim() === targetCountryName.trim()
-        );
-
-        if (!parsed.length) {
-          console.warn(
-            `No hay filas del CSV para el país "${targetCountryName}" en CountryMap`
-          );
-          return;
+        const parsedStores = storeRows
+          .map((r) => ({
+            ...r,
+            N: parseFloat(r.utm_north),
+            E: parseFloat(r.utm_east),
+          }))
+          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
+          .filter((r) => countriesMatch(r.country || "", targetCountryName));
+        
+        console.log("DEBUG tiendas:", {
+          targetCountryName,
+          storeRowsTotal: storeRows.length,
+          parsedStoresCount: parsedStores.length,
+          parsedStores,
+        });
+        
+        if (!parsedClusters.length && !parsedStores.length) {
+          console.warn(`No hay datos para el país "${targetCountryName}"`);
         }
 
         const vb =
@@ -360,7 +414,7 @@ export default function CountryMap() {
               maxE = -Infinity,
               minN = Infinity,
               maxN = -Infinity;
-            parsed.forEach((r) => {
+            parsedClusters.forEach((r) => {
               if (r.E < minE) minE = r.E;
               if (r.E > maxE) maxE = r.E;
               if (r.N < minN) minN = r.N;
@@ -384,7 +438,7 @@ export default function CountryMap() {
             maxE = -Infinity,
             minN = Infinity,
             maxN = -Infinity;
-          parsed.forEach((r) => {
+          parsedClusters.forEach((r) => {
             if (r.E < minE) minE = r.E;
             if (r.E > maxE) maxE = r.E;
             if (r.N < minN) minN = r.N;
@@ -402,7 +456,7 @@ export default function CountryMap() {
         }
 
         // 🔹 Dibuja todos los marcadores (igual que en Map, pero sin círculos)
-        parsed.forEach((r) => {
+        parsedClusters.forEach((r) => {
           const { x, y } = projectFromUTM(r.E, r.N);
 
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -460,6 +514,52 @@ export default function CountryMap() {
           g.appendChild(svgIcon);
 
           markersLayer!.appendChild(g);
+        });
+
+        parsedStores.forEach((r) => {
+          const { x, y } = projectFromUTM(r.E, r.N);
+
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          g.setAttribute("transform", `translate(${x}, ${y})`);
+          g.style.cursor = "pointer";
+          
+          // Guardamos referencia para el toggle
+          storesRef.current.push(g);
+
+          // Inicializamos visibilidad según el estado actual
+          g.style.display = showStores ? "" : "none";
+
+          // --- Pin de la tienda (Diferente color/tamaño) ---
+          // Usamos el mismo SVG path pero más pequeño y de otro color (ej. Naranja)
+          const STORE_ICON_W = 12;
+          const STORE_ICON_H = 18;
+          
+          const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
+          svgIcon.setAttribute("width", String(STORE_ICON_W)); 
+          svgIcon.setAttribute("height", String(STORE_ICON_H));
+          svgIcon.setAttribute("x", String(-STORE_ICON_W / 2));
+          svgIcon.setAttribute("y", String(-STORE_ICON_H * 0.85));
+
+          const gIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          // Store pins use a smaller scale so they appear smaller than cluster pins
+            gIcon.setAttribute("transform", "translate(0,1280) scale(0.045,-0.045)");
+
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("d", PIN_PATH_D);
+          path.setAttribute("fill", "#ff8c00"); // <--- COLOR NARANJA PARA TIENDAS
+          path.setAttribute("stroke", "#ffffff");
+            path.setAttribute("stroke-width", "15");
+
+          gIcon.appendChild(path);
+          svgIcon.appendChild(gIcon);
+          g.appendChild(svgIcon);
+
+          // Tooltip simple para tienda
+          g.addEventListener("click", () => console.log("Tienda:", r.name));
+          
+          // Añadir a la capa de TIENDAS, no a la de markers
+          storesLayer!.appendChild(g);
         });
       } catch (err) {
         console.error("Error cargando markers en CountryMap:", err);
@@ -611,6 +711,12 @@ export default function CountryMap() {
     });
   }, [showRadius]);
 
+  useEffect(() => {
+    storesRef.current.forEach((storeGroup) => {
+      storeGroup.style.display = showStores ? "" : "none";
+    });
+  }, [showStores]);
+
   const title =
     state?.name ??
     ALIAS[slug] ??
@@ -641,6 +747,11 @@ export default function CountryMap() {
         <button onClick={() => setShowRadius((v) => !v)}>
           {showRadius ? "Ocultar clusters" : "Mostrar clusters"}
         </button>
+
+        <button onClick={() => setShowStores((v) => !v)}>
+          {showStores ? "Ocultar tiendas" : "Mostrar tiendas"}
+        </button>
+
       </div>
 
       {/* Error visible */}
