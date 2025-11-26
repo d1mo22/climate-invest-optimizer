@@ -852,7 +852,7 @@ export default function CountryMap() {
             height: "100%",
             background: "#0f0f0f",
             color: "#fff",
-            padding: 12,
+            padding: 35,
             boxSizing: "border-box",
             overflowY: "auto",
             borderLeft: "1px solid rgba(255,255,255,0.04)",
