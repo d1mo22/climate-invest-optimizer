@@ -1,12 +1,12 @@
-import React from "react";
 import {
   PageContainer,
   ProCard,
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button } from "antd";
+
 import { useNavigate } from "react-router-dom";
+import { slugify } from "../utils/slugify";
 import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
 import "../index.css";
 
@@ -167,13 +167,13 @@ const gaugeConfig = {
   percent: percentRiesgos,
   innerRadius: 0.9,
   range: { color: ["#2b2b2b", "#00ff88"] },
-  indicator: null,
-  statistic: {
-    content: {
-      formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
-      style: { fontSize: 18, color: "#fff" },
+  indicator: undefined,
+    statistic: {
+      content: {
+        formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
+        style: { fontSize: "18px", color: "#fff" },
+      },
     },
-  },
 };
 
 // DualAxes: inversión vs beneficios (2026-2035)
@@ -376,14 +376,24 @@ export default function Dashboards() {
                 dataIndex: "país",
                 width: 180,
                 fixed: "left" as const,
+                sorter: (a, b) => a.país.localeCompare(b.país),
+                render: (_: any, record: Row) => (
+                  <a
+                    onClick={() => navigate(`/dashboard/${slugify(record.país)}`)}
+                    style={{ cursor: "pointer", color: "#fff", textDecoration: "none" }}
+                  >
+                    {record.país}
+                  </a>
+                ),
               },
               {
                 title: "Inversión (€M)",
                 dataIndex: "inversión",
                 align: "right",
                 width: 140,
+                sorter: (a, b) => a.inversión - b.inversión,
               },
-              { title: "ROI", dataIndex: "ROI", align: "right", width: 90 },
+              { title: "ROI", dataIndex: "ROI", align: "right", width: 90, sorter: (a, b) => roiToNum(a.ROI) - roiToNum(b.ROI) },
               {
                 title: "Riesgos resueltos",
                 dataIndex: "riesgosResueltos",

@@ -258,9 +258,14 @@ export default function StoreDashboard() {
         title: `📊 ${storeData.tienda} — Dashboard`,
         extra: [
           <button key="country" onClick={() => navigate(`/country/${countrySlug}`)}>
-            Ver País
+            Volver a {storeData.pais}
           </button>,
-          <button key="all" onClick={() => navigate("/dashboards")}>Europa</button>,
+          <button key="pais" onClick={() => navigate(`/dashboard/${countrySlug}`)}>
+            Ver Dashboard {storeData.pais}
+          </button>,
+          <button key="all" onClick={() => navigate("/dashboards")}>
+            Ver dashboard de Europa
+            </button>,
         ],
       }}
     >

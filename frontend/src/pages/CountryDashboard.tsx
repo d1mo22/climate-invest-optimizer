@@ -1,10 +1,11 @@
+import { useEffect, useState } from "react";
 import {
   PageContainer,
   ProCard,
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button } from "antd";
+import { Button, Progress } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { data as allCountriesData } from "./DashBoards";
@@ -282,6 +283,61 @@ export default function CountryDashboard() {
   // ===== Datos de riesgos =====
   const countryRisks = risksByCountry[data.país] || risksByCountry["España"];
 
+  // ===== Tiendas y prioridad (cargar CSV y generar score simple) =====
+  const [stores, setStores] = useState<Array<any>>([]);
+  const [loadingStores, setLoadingStores] = useState<boolean>(true);
+
+  useEffect(() => {
+    const loadStores = async () => {
+      setLoadingStores(true);
+      try {
+        const res = await fetch("/data/Store_rows_utm_simple.csv");
+        const text = await res.text();
+        const [headerLine, ...lines] = text.trim().split(/\r?\n/);
+        const headers = headerLine.split(",").map((h) => h.trim());
+        const rows = lines.map((line) => {
+          const vals = line.split(",").map((v) => v.trim());
+          const row: any = {};
+          headers.forEach((h, i) => (row[h] = vals[i]));
+          return row;
+        });
+
+        // Filtrar por país (nombre en español tal como aparece en CSV)
+        const countryName = data.país;
+        const filtered = rows.filter((r: any) => (r.country || "").trim() === countryName);
+
+        // Enriquecer y calcular prioridad (simulado)
+        const enriched = filtered.map((s: any) => {
+          const currentRoi = +(Math.random() * 15 + 2).toFixed(1); // 2 - 17%
+          const riskLevel = Math.random() > 0.6 ? "Alto" : Math.random() > 0.5 ? "Medio" : "Bajo";
+          let score = 0;
+          if (riskLevel === "Alto") score += 50;
+          if (riskLevel === "Medio") score += 30;
+          if (currentRoi < 5) score += 40;
+          else if (currentRoi < 10) score += 20;
+          score = Math.min(Math.round(score + Math.random() * 10), 100);
+          return {
+            id: s.id,
+            name: s.name,
+            roi: currentRoi,
+            riskLevel,
+            priorityScore: score,
+            investmentNeeded: `${(Math.random() * 2 + 0.5).toFixed(1)}M€`,
+          };
+        });
+
+        enriched.sort((a, b) => b.priorityScore - a.priorityScore);
+        setStores(enriched);
+      } catch (e) {
+        console.error("Error cargando tiendas:", e);
+        setStores([]);
+      } finally {
+        setLoadingStores(false);
+      }
+    };
+    loadStores();
+  }, [data.país]);
+
   // Riesgos más frecuentes
   const frequencyOrder = { Alta: 1, Media: 2, Baja: 3 };
   const mostFrequentRisks = [...countryRisks]
@@ -495,8 +551,7 @@ export default function CountryDashboard() {
               {data.riesgosResueltos} / {data.riesgosTotales} riesgos resueltos
             </div>
           </ProCard>
-        </ProCard>
-
+          </ProCard>
         {/* Gráficos */}
         <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
           <ProCard
@@ -552,6 +607,76 @@ export default function CountryDashboard() {
                 dataIndex: "valor",
                 width: "50%",
                 align: "right" as const,
+              },
+            ]}
+            toolBarRender={false}
+          />
+        </ProCard>
+
+        {/* Prioridad de inversión — Tiendas */}
+        <ProCard bordered title="📌 Prioridad de inversión — Tiendas" size="small" style={{ marginTop: 12 }}>
+          <ProTable<any>
+            rowKey="id"
+            loading={loadingStores}
+            dataSource={stores}
+            search={false}
+            options={false}
+            pagination={{ pageSize: 6 }}
+            size="small"
+            columns={[
+              {
+                title: "#",
+                render: (_: any, __: any, index: number) => index + 1,
+                width: 60,
+                align: "center" as const,
+              },
+              {
+                title: "Tienda",
+                dataIndex: "name",
+                render: (_text: any, record: any) => (
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{record.name}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>ID: {record.id}</div>
+                  </div>
+                ),
+              },
+              {
+                title: "Urgencia (Score)",
+                dataIndex: "priorityScore",
+                render: (_: any, record: any) => (
+                  <div style={{ width: 140 }}>
+                    <Progress
+                      percent={record.priorityScore}
+                      showInfo={false}
+                      strokeColor={record.priorityScore > 80 ? '#ff4d4f' : record.priorityScore > 50 ? '#faad14' : '#52c41a'}
+                    />
+                    <div style={{ fontSize: 12, textAlign: 'right', marginTop: 4 }}>{record.priorityScore}/100</div>
+                  </div>
+                ),
+              },
+              {
+                title: "ROI Actual",
+                dataIndex: "roi",
+                render: (_: any, record: any) => `${record.roi}%`,
+              },
+              {
+                title: "Inversión necesaria",
+                dataIndex: "investmentNeeded",
+                align: "right" as const,
+              },
+              {
+                title: "Acción",
+                valueType: "option",
+                render: (_: any, record: any) => [
+                  <Button
+                    key="view"
+                    type="primary"
+                    size="small"
+                    onClick={() => navigate(`/store/${record.id}`)}
+                  >
+                    Analizar
+                  </Button>,
+                ],
               },
             ]}
             toolBarRender={false}
@@ -689,12 +814,21 @@ export default function CountryDashboard() {
             size="small"
             scroll={{ x: true }}
             columns={[
-              { title: "Tipo", dataIndex: "tipo", width: 120 },
+              {
+                title: "Tipo",
+                dataIndex: "tipo",
+                width: 120,
+                sorter: (a, b) => a.tipo.localeCompare(b.tipo),
+              },
               { title: "Descripción", dataIndex: "descripcion", width: 250 },
               {
                 title: "Frecuencia",
                 dataIndex: "frecuencia",
                 width: 100,
+                sorter: (a, b) => {
+                  const order: Record<string, number> = { Alta: 1, Media: 2, Baja: 3 };
+                  return (order[a.frecuencia] || 99) - (order[b.frecuencia] || 99);
+                },
                 render: (_, record) => (
                   <span
                     style={{
@@ -714,6 +848,10 @@ export default function CountryDashboard() {
                 title: "Impacto",
                 dataIndex: "impacto",
                 width: 100,
+                sorter: (a, b) => {
+                  const order: Record<string, number> = { Alto: 1, Medio: 2, Bajo: 3 };
+                  return (order[a.impacto] || 99) - (order[b.impacto] || 99);
+                },
                 render: (_, record) => (
                   <span
                     style={{
@@ -734,11 +872,13 @@ export default function CountryDashboard() {
                 dataIndex: "tiendas_afectadas",
                 width: 130,
                 align: "right" as const,
+                sorter: (a, b) => (a.tiendas_afectadas || 0) - (b.tiendas_afectadas || 0),
               },
               {
                 title: "Estado",
                 dataIndex: "estado",
                 width: 100,
+                sorter: (a, b) => a.estado.localeCompare(b.estado),
                 render: (_, record) => (
                   <span
                     style={{
