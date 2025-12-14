@@ -17,12 +17,17 @@ const slugify = (s: string) => normalize(s).replace(/\s+/g, "-");
 
 // Mapeo de nombres de país: inglés <-> español (bidireccional)
 const COUNTRY_NAMES: Record<string, string[]> = {
-  "Spain": ["Spain", "España", "spain", "españa"],
-  "Germany": ["Germany", "Alemania", "germany", "alemania"],
-  "France": ["France", "Francia", "france", "francia"],
-  "Italy": ["Italy", "Italia", "italy", "italia"],
-  "United Kingdom": ["United Kingdom", "Reino Unido", "united kingdom", "reino unido"],
-  "Portugal": ["Portugal", "portugal"],
+  Spain: ["Spain", "España", "spain", "españa"],
+  Germany: ["Germany", "Alemania", "germany", "alemania"],
+  France: ["France", "Francia", "france", "francia"],
+  Italy: ["Italy", "Italia", "italy", "italia"],
+  "United Kingdom": [
+    "United Kingdom",
+    "Reino Unido",
+    "united kingdom",
+    "reino unido",
+  ],
+  Portugal: ["Portugal", "portugal"],
 };
 
 // Función para comparar países ignorando idioma
@@ -30,9 +35,9 @@ const countriesMatch = (a: string, b: string): boolean => {
   const aNorm = a.trim().toLowerCase();
   const bNorm = b.trim().toLowerCase();
   if (aNorm === bNorm) return true;
-  
+
   for (const variants of Object.values(COUNTRY_NAMES)) {
-    const lowVariants = variants.map(v => v.toLowerCase());
+    const lowVariants = variants.map((v) => v.toLowerCase());
     if (lowVariants.includes(aNorm) && lowVariants.includes(bNorm)) {
       return true;
     }
@@ -233,7 +238,9 @@ export default function CountryMap() {
   const [refitTick, setRefitTick] = useState(0);
 
   // Lista de tiendas parseadas disponible para el sidebar
-  const [storesList, setStoresList] = useState<Array<CsvRow & { N: number; E: number }>>([]);
+  const [storesList, setStoresList] = useState<
+    Array<CsvRow & { N: number; E: number }>
+  >([]);
 
   // 🔵 NUEVO: toggle de circunferencias
   const [showRadius, setShowRadius] = useState(false);
@@ -297,7 +304,9 @@ export default function CountryMap() {
 
     // ===== 1.6) Capa de TIENDAS (Stores) =====
     // Creamos una capa separada para que estén ordenadas y sea fácil ocultarlas
-    let storesLayer = viewport.querySelector("#stores-layer") as SVGGElement | null;
+    let storesLayer = viewport.querySelector(
+      "#stores-layer"
+    ) as SVGGElement | null;
     if (!storesLayer) {
       storesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
       storesLayer.setAttribute("id", "stores-layer");
@@ -381,14 +390,14 @@ export default function CountryMap() {
           .filter((r) => countriesMatch(r.country || "", targetCountryName));
         // Guardamos la lista para el sidebar
         setStoresList(parsedStores);
-        
+
         console.log("DEBUG tiendas:", {
           targetCountryName,
           storeRowsTotal: storeRows.length,
           parsedStoresCount: parsedStores.length,
           parsedStores,
         });
-        
+
         if (!parsedClusters.length && !parsedStores.length) {
           console.warn(`No hay datos para el país "${targetCountryName}"`);
         }
@@ -529,7 +538,7 @@ export default function CountryMap() {
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
-          
+
           // Guardamos referencia para el toggle
           storesRef.current.push(g);
 
@@ -540,23 +549,35 @@ export default function CountryMap() {
           // Usamos el mismo SVG path pero más pequeño y de otro color (ej. Naranja)
           const STORE_ICON_W = 12;
           const STORE_ICON_H = 18;
-          
-          const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+          const svgIcon = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+          );
           svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
-          svgIcon.setAttribute("width", String(STORE_ICON_W)); 
+          svgIcon.setAttribute("width", String(STORE_ICON_W));
           svgIcon.setAttribute("height", String(STORE_ICON_H));
           svgIcon.setAttribute("x", String(-STORE_ICON_W / 2));
           svgIcon.setAttribute("y", String(-STORE_ICON_H * 0.85));
 
-          const gIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          const gIcon = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g"
+          );
           // Store pins use a smaller scale so they appear smaller than cluster pins
-            gIcon.setAttribute("transform", "translate(0,1280) scale(0.045,-0.045)");
+          gIcon.setAttribute(
+            "transform",
+            "translate(0,1280) scale(0.045,-0.045)"
+          );
 
-          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          );
           path.setAttribute("d", PIN_PATH_D);
           path.setAttribute("fill", "#ff8c00"); // <--- COLOR NARANJA PARA TIENDAS
           path.setAttribute("stroke", "#ffffff");
-            path.setAttribute("stroke-width", "15");
+          path.setAttribute("stroke-width", "15");
 
           gIcon.appendChild(path);
           svgIcon.appendChild(gIcon);
@@ -567,7 +588,7 @@ export default function CountryMap() {
             e.stopPropagation();
             navigate(`/store/${r.id}`);
           });
-          
+
           // Añadir a la capa de TIENDAS, no a la de markers
           storesLayer!.appendChild(g);
         });
@@ -620,10 +641,15 @@ export default function CountryMap() {
       try {
         const svgEl = container.querySelector("svg") as SVGSVGElement | null;
         if (!svgEl) return;
-        const g = svgEl.querySelector(`g[data-store-id="${CSS.escape(id)}"]`) as SVGGElement | null;
+        const g = svgEl.querySelector(
+          `g[data-store-id="${CSS.escape(id)}"]`
+        ) as SVGGElement | null;
         if (!g) return;
         // Añadimos un círculo pulso temporal
-        const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        const pulse = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle"
+        );
         pulse.setAttribute("cx", "0");
         pulse.setAttribute("cy", "0");
         pulse.setAttribute("r", "6");
@@ -794,7 +820,6 @@ export default function CountryMap() {
         <button onClick={() => setShowStores((v) => !v)}>
           {showStores ? "Ocultar tiendas" : "Mostrar tiendas"}
         </button>
-
       </div>
 
       {/* Error visible */}
@@ -830,19 +855,6 @@ export default function CountryMap() {
           }}
         >
           <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
-          <div
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 16,
-              color: "#00ff88",
-              fontWeight: 700,
-              fontSize: "1.1rem",
-              textShadow: "0 1px 2px rgba(0,0,0,.5)",
-            }}
-          >
-            {title}
-          </div>
         </div>
 
         {/* Sidebar: listado de tiendas */}
@@ -858,6 +870,26 @@ export default function CountryMap() {
             borderLeft: "1px solid rgba(255,255,255,0.04)",
           }}
         >
+          {/* 🔵 Título de la lista: nombre del país */}
+          <h2
+            style={{
+              margin: 0,
+              marginBottom: 4,
+              fontSize: 18,
+              fontWeight: 600,
+            }}
+          >
+            {title}
+          </h2>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#aaa",
+              marginBottom: 16,
+            }}
+          >
+            Tiendas
+          </div>
 
           {storesList.length === 0 ? (
             <div style={{ color: "#999", fontSize: 13 }}>
@@ -866,14 +898,28 @@ export default function CountryMap() {
           ) : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {storesList.map((s) => (
-                <li key={s.id} style={{ padding: "8px 6px", borderBottom: "1px solid rgba(255,255,255,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ cursor: "pointer" }} onClick={() => {
-                    // llamar a la función creada dentro del effect
-                    const c = containerRef.current as any;
-                    c?.__focusOnStore?.(String(s.id));
-                  }}>
+                <li
+                  key={s.id}
+                  style={{
+                    padding: "8px 6px",
+                    borderBottom: "1px solid rgba(255,255,255,0.03)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      // llamar a la función creada dentro del effect
+                      const c = containerRef.current as any;
+                      c?.__focusOnStore?.(String(s.id));
+                    }}
+                  >
                     <div style={{ fontSize: 14 }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#aaa" }}>{`${Math.round(s.N)} , ${Math.round(s.E)}`}</div>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>{`${Math.round(
+                      s.N
+                    )} , ${Math.round(s.E)}`}</div>
                   </div>
                   <div style={{ marginLeft: "10px" }}>
                     <button

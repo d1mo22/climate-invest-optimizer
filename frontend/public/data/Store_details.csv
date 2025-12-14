@@ -1,11 +1,11 @@
-id,slug,tienda,pais,inversion,roi,riesgos_totales,riesgos_resueltos,riesgos_pendientes,beneficio_anual,plan_next_year,plan_10y
-1,tienda-sevilla,Tienda Sevilla (Andalucía),España,1.2,15.0%,5,4,1,0.18,0.5,3.5
-2,tienda-coruna-1,Tienda Coruña 1 (Galicia),España,1.5,12.0%,6,5,1,0.2,0.6,4.0
-3,tienda-vigo,Tienda Vigo (Galicia),España,1.1,14.5%,4,3,1,0.15,0.4,3.2
-4,tienda-santiago,Tienda Santiago (Galicia),España,1.3,13.0%,5,4,1,0.19,0.5,3.8
-5,tienda-madrid-1,Tienda Madrid 1,España,2.0,18.0%,8,6,2,0.3,0.8,5.5
-6,tienda-madrid-2,Tienda Madrid 2,España,1.8,16.5%,7,5,2,0.25,0.7,4.8
-7,tienda-barcelona-1,Tienda Barcelona 1,España,2.2,17.5%,9,7,2,0.35,0.9,6.0
-8,tienda-valencia,Tienda Valencia,España,1.6,15.5%,6,5,1,0.22,0.6,4.2
-9,tienda-pamplona,Tienda Pamplona (Navarra),España,1.0,14.0%,4,3,1,0.14,0.4,3.0
-10,tienda-bilbao,Tienda Bilbao,España,1.4,15.0%,5,4,1,0.21,0.5,3.9
+id,slug,tienda,pais,inversion,roi,riesgos_totales,riesgos_resueltos,riesgos_pendientes,beneficio_anual,plan_next_year,plan_10y,cluster_id
+1,tienda-sevilla,Tienda Sevilla (Andalucía),España,1.2,15.0%,5,4,1,0.18,0.5,3.5,2
+2,tienda-coruna-1,Tienda Coruña 1 (Galicia),España,1.5,12.0%,6,5,1,0.2,0.6,4.0,6
+3,tienda-vigo,Tienda Vigo (Galicia),España,1.1,14.5%,4,3,1,0.15,0.4,3.2,6
+4,tienda-santiago,Tienda Santiago (Galicia),España,1.3,13.0%,5,4,1,0.19,0.5,3.8,6
+5,tienda-madrid-1,Tienda Madrid 1,España,2.0,18.0%,8,6,2,0.3,0.8,5.5,1
+6,tienda-madrid-2,Tienda Madrid 2,España,1.8,16.5%,7,5,2,0.25,0.7,4.8,1
+7,tienda-barcelona-1,Tienda Barcelona 1,España,2.2,17.5%,9,7,2,0.35,0.9,6.0,4
+8,tienda-valencia,Tienda Valencia,España,1.6,15.5%,6,5,1,0.22,0.6,4.2,7
+9,tienda-pamplona,Tienda Pamplona (Navarra),España,1.0,14.0%,4,3,1,0.14,0.4,3.0,8
+10,tienda-bilbao,Tienda Bilbao,España,1.4,15.0%,5,4,1,0.21,0.5,3.9,8
