@@ -98,7 +98,7 @@ const ALIAS: Record<string, string> = {
 const transformPoint = (m: DOMMatrix, p: DOMPoint) =>
   new DOMPoint(p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f);
 
-/* ===== Constantes markers (copiadas de Map.tsx) ===== */
+/* ===== Types ===== */
 
 type CsvRow = {
   id: string;
@@ -107,6 +107,43 @@ type CsvRow = {
   utm_north: string;
   utm_east: string;
 };
+
+type StoreDetailRow = {
+  id: string;
+  inversion: string; // viene como string en el CSV
+};
+
+// CSV simple genérico
+async function fetchCsvGeneric<T = any>(url: string): Promise<T[]> {
+  const txt = await fetch(url).then((r) => r.text());
+  const [header, ...lines] = txt.trim().split(/\r?\n/);
+  const cols = header.split(",").map((s) => s.trim());
+
+  return lines
+    .filter((l) => l.trim().length > 0)
+    .map((line) => {
+      const cells = line.split(",").map((s) => s.trim());
+      const row: any = {};
+      cols.forEach((c, i) => (row[c] = cells[i]));
+      return row as T;
+    });
+}
+
+async function fetchCSV(url: string): Promise<CsvRow[]> {
+  const txt = await fetch(url).then((r) => r.text());
+  const [header, ...lines] = txt.trim().split(/\r?\n/);
+  const cols = header.split(",").map((s) => s.trim());
+  return lines
+    .filter((l) => l.trim().length > 0)
+    .map((line) => {
+      const cells = line.split(",").map((s) => s.trim());
+      const row: any = {};
+      cols.forEach((c, i) => (row[c] = cells[i]));
+      return row as CsvRow;
+    });
+}
+
+/* ===== Constantes markers (copiadas de Map.tsx) ===== */
 
 const MARKER_RADIUS_PX = 20; // igual que en Map.tsx
 
@@ -150,19 +187,27 @@ function getMarkerColor(name: string) {
   return "#4b6bfdff";
 }
 
-async function fetchCSV(url: string): Promise<CsvRow[]> {
-  const txt = await fetch(url).then((r) => r.text());
-  const [header, ...lines] = txt.trim().split(/\r?\n/);
-  const cols = header.split(",").map((s) => s.trim());
-  return lines.map((line) => {
-    const cells = line.split(",").map((s) => s.trim());
-    const row: any = {};
-    cols.forEach((c, i) => (row[c] = cells[i]));
-    return row as CsvRow;
-  });
+/* ===== Utils color (rojo -> verde) ===== */
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+function rgbToHex(r: number, g: number, b: number) {
+  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+// t=0 => rojo, t=1 => verde
+function redToGreen(t: number) {
+  t = clamp01(t);
+  const r = lerp(220, 0, t);
+  const g = lerp(40, 200, t);
+  const b = lerp(60, 80, t);
+  return rgbToHex(r, g, b);
 }
 
-// Afinidad N puntos (igual que en Map.tsx)
+/* ===== Afinidad N puntos (igual que en Map.tsx) ===== */
+
 function affineFromN(src: [number, number][], dst: [number, number][]) {
   if (src.length !== dst.length) {
     throw new Error("src y dst deben tener la misma longitud");
@@ -204,9 +249,7 @@ function affineFromN(src: [number, number][], dst: [number, number][]) {
   const solve3 = (A: number[][], b: number[]) => {
     const dA = det(A);
     if (Math.abs(dA) < 1e-9) {
-      throw new Error(
-        "Sistema casi singular; puntos de ancla mal condicionados"
-      );
+      throw new Error("Sistema casi singular; puntos de ancla mal condicionados");
     }
     const repl = (col: number, vec: number[]) =>
       A.map((row, i) => row.map((v, j) => (j === col ? vec[i] : v)));
@@ -242,11 +285,19 @@ export default function CountryMap() {
     Array<CsvRow & { N: number; E: number }>
   >([]);
 
-  // 🔵 NUEVO: toggle de circunferencias
+  // inversión por tienda (para orden y display)
+  const [invByIdState, setInvByIdState] = useState<Record<string, number>>({});
+
+  // ordenación del sidebar
+  const [sortBy, setSortBy] = useState<"inversion_desc" | "name_asc">(
+    "inversion_desc"
+  );
+
+  // toggles
   const [showRadius, setShowRadius] = useState(false);
   const [showStores, setShowStores] = useState(true);
 
-  // 🔵 NUEVO: referencia a todos los círculos para poder enseñar/ocultar
+  // refs
   const radiusCirclesRef = useRef<SVGCircleElement[]>([]);
   const storesRef = useRef<SVGGElement[]>([]);
 
@@ -279,34 +330,23 @@ export default function CountryMap() {
     // mover hijos al viewport (excepto defs y camera)
     Array.from(svg.childNodes).forEach((node) => {
       if (node === camera) return;
-      if (
-        node.nodeType === 1 &&
-        (node as Element).tagName.toLowerCase() === "defs"
-      )
+      if (node.nodeType === 1 && (node as Element).tagName.toLowerCase() === "defs")
         return;
       viewport!.appendChild(node);
     });
 
-    // ===== 1.5) Capa de markers =====
-    let markersLayer = viewport.querySelector(
-      "#markers-layer"
-    ) as SVGGElement | null;
+    // ===== 1.5) Capa de clusters =====
+    let markersLayer = viewport.querySelector("#markers-layer") as SVGGElement | null;
     if (!markersLayer) {
-      markersLayer = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "g"
-      );
+      markersLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
       markersLayer.setAttribute("id", "markers-layer");
       viewport.appendChild(markersLayer);
     } else {
       markersLayer.innerHTML = "";
     }
 
-    // ===== 1.6) Capa de TIENDAS (Stores) =====
-    // Creamos una capa separada para que estén ordenadas y sea fácil ocultarlas
-    let storesLayer = viewport.querySelector(
-      "#stores-layer"
-    ) as SVGGElement | null;
+    // ===== 1.6) Capa de TIENDAS =====
+    let storesLayer = viewport.querySelector("#stores-layer") as SVGGElement | null;
     if (!storesLayer) {
       storesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
       storesLayer.setAttribute("id", "stores-layer");
@@ -319,31 +359,25 @@ export default function CountryMap() {
     const incomingName = state?.name;
     const aliasName = ALIAS[slug] ?? null;
     const byName = (name: string) =>
-      viewport!.querySelector(
-        `path[name="${CSS.escape(name)}"]`
-      ) as SVGPathElement | null;
+      viewport!.querySelector(`path[name="${CSS.escape(name)}"]`) as SVGPathElement | null;
 
     let target: SVGPathElement | null = null;
     if (incomingName) target = byName(incomingName);
     if (!target && aliasName) target = byName(aliasName);
     if (!target) {
       const normSlug = normalize(slug);
-      const all = Array.from(
-        viewport.querySelectorAll("path[name]")
-      ) as SVGPathElement[];
-      target =
-        all.find((p) => slugify(p.getAttribute("name") || "") === normSlug) ||
-        null;
+      const all = Array.from(viewport.querySelectorAll("path[name]")) as SVGPathElement[];
+      target = all.find((p) => slugify(p.getAttribute("name") || "") === normSlug) || null;
     }
     if (!target) {
       setError(`No se encontró el país para slug "${slug}".`);
       return;
     }
+
     const targetCountryName = target.getAttribute("name") || "";
+
     // ===== 3) Ocultar el resto
-    const allPaths = Array.from(
-      viewport.querySelectorAll("path[name]")
-    ) as SVGPathElement[];
+    const allPaths = Array.from(viewport.querySelectorAll("path[name]")) as SVGPathElement[];
     allPaths.forEach((p) => {
       if (p === target) {
         p.style.display = "inline";
@@ -357,50 +391,54 @@ export default function CountryMap() {
       }
     });
 
-    // ===== 3.5) Dibujar markers (mismo CSV que en Map.tsx) =====
+    // ===== 3.5) Dibujar markers =====
     radiusCirclesRef.current = [];
     storesRef.current = [];
+
     (async () => {
-      //try {
-      //  const rows = await fetchCSV(
-      //    "../../public/data/Cluster_rows_utm_simple.csv"
-      //  );
       try {
-        // A) Cargar CLUSTERS y TIENDAS en paralelo
-        const [clusterRows, storeRows] = await Promise.all([
+        const [clusterRows, storeRows, storeDetails] = await Promise.all([
           fetchCSV("/data/Cluster_rows_utm_simple.csv"),
           fetchCSV("/data/Store_rows_utm_simple.csv"),
+          fetchCsvGeneric<StoreDetailRow>("/data/Store_details.csv"),
         ]);
+
         const parsedClusters = clusterRows
-          .map((r) => ({
-            ...r,
-            N: parseFloat(r.utm_north),
-            E: parseFloat(r.utm_east),
-          }))
+          .map((r) => ({ ...r, N: parseFloat(r.utm_north), E: parseFloat(r.utm_east) }))
           .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
           .filter((r) => countriesMatch(r.country || "", targetCountryName));
 
         const parsedStores = storeRows
-          .map((r) => ({
-            ...r,
-            N: parseFloat(r.utm_north),
-            E: parseFloat(r.utm_east),
-          }))
+          .map((r) => ({ ...r, N: parseFloat(r.utm_north), E: parseFloat(r.utm_east) }))
           .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
           .filter((r) => countriesMatch(r.country || "", targetCountryName));
-        // Guardamos la lista para el sidebar
+
         setStoresList(parsedStores);
 
-        console.log("DEBUG tiendas:", {
-          targetCountryName,
-          storeRowsTotal: storeRows.length,
-          parsedStoresCount: parsedStores.length,
-          parsedStores,
+        // Map id -> inversion (num)
+        const invById = new Map<string, number>();
+        storeDetails.forEach((d) => {
+          const inv = parseFloat(String(d.inversion ?? "").replace(",", "."));
+          if (!Number.isNaN(inv)) invById.set(String(d.id), inv);
         });
+        setInvByIdState(Object.fromEntries(invById.entries()));
 
-        if (!parsedClusters.length && !parsedStores.length) {
-          console.warn(`No hay datos para el país "${targetCountryName}"`);
-        }
+        // Inversiones del país (solo tiendas aquí)
+        const invValues = parsedStores
+          .map((s) => invById.get(String(s.id)))
+          .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+
+        const maxInv = invValues.length ? Math.max(...invValues) : 0;
+        const minInv = invValues.length ? Math.min(...invValues) : 0;
+
+        // más inversión => más rojo
+        const colorForStore = (storeId: string) => {
+          const inv = invById.get(String(storeId));
+          if (inv == null || maxInv === minInv) return "#ff8c00"; // fallback naranja
+          // 0 = maxInv (rojo), 1 = minInv (verde)
+          const t = (maxInv - inv) / (maxInv - minInv);
+          return redToGreen(t);
+        };
 
         const vb =
           svg.viewBox && svg.viewBox.baseVal
@@ -445,9 +483,7 @@ export default function CountryMap() {
             };
           }
         } else {
-          console.warn(
-            "Afinidad no configurada; usando proyección lineal (CountryMap)"
-          );
+          console.warn("Afinidad no configurada; usando proyección lineal (CountryMap)");
           let minE = Infinity,
             maxE = -Infinity,
             minN = Infinity,
@@ -469,57 +505,41 @@ export default function CountryMap() {
           };
         }
 
-        // 🔹 Dibuja todos los marcadores (igual que en Map, pero sin círculos)
+        // ===== CLUSTERS =====
         parsedClusters.forEach((r) => {
           const { x, y } = projectFromUTM(r.E, r.N);
 
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-          // identificador para poder buscar desde el sidebar
           g.setAttribute("data-store-id", String(r.id));
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
 
-          // 🔵 NUEVO: círculo de radio alrededor del marker
-          const radiusCircle = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "circle"
-          );
+          const radiusCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           radiusCircle.setAttribute("cx", "0");
           radiusCircle.setAttribute("cy", "0");
           radiusCircle.setAttribute("r", String(MARKER_RADIUS_PX));
           radiusCircle.setAttribute("fill", "rgba(75, 107, 253, 0.15)");
           radiusCircle.setAttribute("stroke", getMarkerColor(r.name));
           radiusCircle.setAttribute("stroke-width", "1.5");
-          radiusCircle.style.display = showRadius ? "" : "none"; // estado inicial
-
-          // guardar referencia para poder cambiar display luego
+          radiusCircle.style.display = showRadius ? "" : "none";
           radiusCirclesRef.current.push(radiusCircle);
           g.appendChild(radiusCircle);
 
-          // Pin SVG
+          // (pin cluster está a 0x0, lo mantengo tal cual lo tenías)
           const ICON_W = 0;
           const ICON_H = 0;
 
-          const svgIcon = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "svg"
-          );
+          const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
           svgIcon.setAttribute("width", String(ICON_W));
           svgIcon.setAttribute("height", String(ICON_H));
           svgIcon.setAttribute("x", String(-ICON_W / 2));
           svgIcon.setAttribute("y", String(-ICON_H * 0.85));
 
-          const gIcon = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "g"
-          );
+          const gIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
           gIcon.setAttribute("transform", PIN_GROUP_TRANSFORM);
 
-          const path = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "path"
-          );
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("d", PIN_PATH_D);
           path.setAttribute("fill", getMarkerColor(r.name));
           path.setAttribute("stroke", "#111");
@@ -532,6 +552,7 @@ export default function CountryMap() {
           markersLayer!.appendChild(g);
         });
 
+        // ===== TIENDAS =====
         parsedStores.forEach((r) => {
           const { x, y } = projectFromUTM(r.E, r.N);
 
@@ -539,43 +560,25 @@ export default function CountryMap() {
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
 
-          // Guardamos referencia para el toggle
           storesRef.current.push(g);
-
-          // Inicializamos visibilidad según el estado actual
           g.style.display = showStores ? "" : "none";
 
-          // --- Pin de la tienda (Diferente color/tamaño) ---
-          // Usamos el mismo SVG path pero más pequeño y de otro color (ej. Naranja)
           const STORE_ICON_W = 12;
           const STORE_ICON_H = 18;
 
-          const svgIcon = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "svg"
-          );
+          const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
           svgIcon.setAttribute("width", String(STORE_ICON_W));
           svgIcon.setAttribute("height", String(STORE_ICON_H));
           svgIcon.setAttribute("x", String(-STORE_ICON_W / 2));
           svgIcon.setAttribute("y", String(-STORE_ICON_H * 0.85));
 
-          const gIcon = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "g"
-          );
-          // Store pins use a smaller scale so they appear smaller than cluster pins
-          gIcon.setAttribute(
-            "transform",
-            "translate(0,1280) scale(0.045,-0.045)"
-          );
+          const gIcon = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gIcon.setAttribute("transform", "translate(0,1280) scale(0.045,-0.045)");
 
-          const path = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "path"
-          );
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("d", PIN_PATH_D);
-          path.setAttribute("fill", "#ff8c00"); // <--- COLOR NARANJA PARA TIENDAS
+          path.setAttribute("fill", colorForStore(r.id));
           path.setAttribute("stroke", "#ffffff");
           path.setAttribute("stroke-width", "15");
 
@@ -583,13 +586,11 @@ export default function CountryMap() {
           svgIcon.appendChild(gIcon);
           g.appendChild(svgIcon);
 
-          // Tooltip simple para tienda + click desde mapa
           g.addEventListener("click", (e) => {
             e.stopPropagation();
             navigate(`/store/${r.id}`);
           });
 
-          // Añadir a la capa de TIENDAS, no a la de markers
           storesLayer!.appendChild(g);
         });
       } catch (err) {
@@ -597,9 +598,9 @@ export default function CountryMap() {
       }
     })();
 
-    // ===== 4) Fit estable con viewBox (menos zoom inicial)
+    // ===== 4) Fit estable con viewBox =====
     const FIT_PAD_PX = 28;
-    const FIT_SCALE_FACTOR = 0.85; // <1 = más lejos
+    const FIT_SCALE_FACTOR = 0.85;
 
     const vb =
       svg.viewBox && svg.viewBox.baseVal
@@ -636,20 +637,17 @@ export default function CountryMap() {
       `translate(${vbCx}, ${vbCy}) scale(${baseScale}) translate(${-cx}, ${-cy})`
     );
 
-    // ---- Función para resaltar / pulsar visualmente una tienda desde el sidebar
+    // ---- Focus desde sidebar
     const focusOnStore = (id: string) => {
       try {
         const svgEl = container.querySelector("svg") as SVGSVGElement | null;
         if (!svgEl) return;
-        const g = svgEl.querySelector(
-          `g[data-store-id="${CSS.escape(id)}"]`
-        ) as SVGGElement | null;
+        const g = svgEl.querySelector(`g[data-store-id="${CSS.escape(id)}"]`) as
+          | SVGGElement
+          | null;
         if (!g) return;
-        // Añadimos un círculo pulso temporal
-        const pulse = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "circle"
-        );
+
+        const pulse = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         pulse.setAttribute("cx", "0");
         pulse.setAttribute("cy", "0");
         pulse.setAttribute("r", "6");
@@ -659,22 +657,19 @@ export default function CountryMap() {
         pulse.style.transition = "transform 300ms ease, opacity 800ms ease";
         pulse.style.transformOrigin = "center";
         g.appendChild(pulse);
-        // animación: escalado y fade
+
         requestAnimationFrame(() => {
           pulse.style.transform = "scale(3)";
           pulse.style.opacity = "0";
         });
         setTimeout(() => pulse.remove(), 900);
-      } catch (err) {
+      } catch {
         // ignore
       }
     };
-
-    // Exponemos la función en el elemento container para que el sidebar (fuera del effect)
-    // pueda llamarla: lo hacemos mediante propiedad personalizada.
     (container as any).__focusOnStore = focusOnStore;
 
-    // ===== 5) Extra transform (pan/zoom) en espacio "cámara" + rAF
+    // ===== 5) Pan/zoom
     let z = 1;
     let tx = 0;
     let ty = 0;
@@ -772,7 +767,7 @@ export default function CountryMap() {
       svg.removeEventListener("pointerleave", onPointerUp as EventListener);
       window.removeEventListener("resize", onResize);
     };
-  }, [slug, state?.name, refitTick, navigate]);
+  }, [slug, state?.name, refitTick, navigate, showRadius, showStores]);
 
   useEffect(() => {
     radiusCirclesRef.current.forEach((circle) => {
@@ -793,6 +788,26 @@ export default function CountryMap() {
       .replace(/-/g, " ")
       .replace(/^./, (c) => c.toUpperCase());
 
+  // ===== LISTA ORDENADA =====
+  const sortedStores = React.useMemo(() => {
+    const arr = [...storesList];
+
+    if (sortBy === "inversion_desc") {
+      arr.sort((a, b) => {
+        const ia = invByIdState[String(a.id)] ?? -Infinity;
+        const ib = invByIdState[String(b.id)] ?? -Infinity;
+        return ib - ia; // mayor inversión primero
+      });
+      return arr;
+    }
+
+    // name_asc
+    arr.sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", "es", { sensitivity: "base" })
+    );
+    return arr;
+  }, [storesList, sortBy, invByIdState]);
+
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       {/* Controles */}
@@ -807,12 +822,9 @@ export default function CountryMap() {
         }}
       >
         <button onClick={() => navigate(-1)}>← Volver</button>
-        <button onClick={() => navigate(`/dashboard/${slug}`)}>
-          Ver dashboard
-        </button>
+        <button onClick={() => navigate(`/dashboard/${slug}`)}>Ver dashboard</button>
         <button onClick={() => setRefitTick((n) => n + 1)}>Re-centrar</button>
 
-        {/* 🔵 NUEVO: toggle circunferencias */}
         <button onClick={() => setShowRadius((v) => !v)}>
           {showRadius ? "Ocultar clusters" : "Mostrar clusters"}
         </button>
@@ -842,7 +854,7 @@ export default function CountryMap() {
         </div>
       )}
 
-      {/* Layout: mapa a la izquierda, sidebar de tiendas a la derecha */}
+      {/* Layout */}
       <div style={{ display: "flex", width: "100vw", height: "100vh" }}>
         <div
           ref={containerRef}
@@ -857,7 +869,7 @@ export default function CountryMap() {
           <MapSVG style={{ width: "100%", height: "100%", cursor: "grab" }} />
         </div>
 
-        {/* Sidebar: listado de tiendas */}
+        {/* Sidebar */}
         <aside
           style={{
             width: 320,
@@ -870,79 +882,92 @@ export default function CountryMap() {
             borderLeft: "1px solid rgba(255,255,255,0.04)",
           }}
         >
-          {/* 🔵 Título de la lista: nombre del país */}
-          <h2
-            style={{
-              margin: 0,
-              marginBottom: 4,
-              fontSize: 18,
-              fontWeight: 600,
-            }}
-          >
+          <h2 style={{ margin: 0, marginBottom: 4, fontSize: 18, fontWeight: 600 }}>
             {title}
           </h2>
-          <div
-            style={{
-              fontSize: 12,
-              color: "#aaa",
-              marginBottom: 16,
-            }}
-          >
-            Tiendas
+          <div style={{ fontSize: 12, color: "#aaa", marginBottom: 12 }}>Tiendas</div>
+
+          {/* Orden */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: "#aaa" }}>Ordenar por</div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                background: "#151515",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                fontSize: 12,
+              }}
+            >
+              <option value="inversion_desc">Inversión (mayor → menor)</option>
+              <option value="name_asc">Nombre (A → Z)</option>
+            </select>
           </div>
 
-          {storesList.length === 0 ? (
+          {sortedStores.length === 0 ? (
             <div style={{ color: "#999", fontSize: 13 }}>
               No hay tiendas cargadas para este país.
             </div>
           ) : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {storesList.map((s) => (
-                <li
-                  key={s.id}
-                  style={{
-                    padding: "8px 6px",
-                    borderBottom: "1px solid rgba(255,255,255,0.03)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{ cursor: "pointer" }}
-                    onClick={() => {
-                      // llamar a la función creada dentro del effect
-                      const c = containerRef.current as any;
-                      c?.__focusOnStore?.(String(s.id));
+              {sortedStores.map((s) => {
+                const inv = invByIdState[String(s.id)];
+                const invText = Number.isFinite(inv) ? inv.toFixed(2) : "—";
+
+                return (
+                  <li
+                    key={s.id}
+                    style={{
+                      padding: "8px 6px",
+                      borderBottom: "1px solid rgba(255,255,255,0.03)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
                   >
-                    <div style={{ fontSize: 14 }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#aaa" }}>{`${Math.round(
-                      s.N
-                    )} , ${Math.round(s.E)}`}</div>
-                  </div>
-                  <div style={{ marginLeft: "10px" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/store/${s.id}`);
-                      }}
-                      title="Ver Dashboard"
-                      style={{
-                        background: "#333",
-                        border: "1px solid #555",
-                        color: "white",
-                        borderRadius: "4px",
-                        padding: "6px 10px",
-                        cursor: "pointer",
-                        fontSize: "14px",
+                    <div
+                      style={{ cursor: "pointer", flex: 1 }}
+                      onClick={() => {
+                        const c = containerRef.current as any;
+                        c?.__focusOnStore?.(String(s.id));
                       }}
                     >
-                      📊
-                    </button>
-                  </div>
-                </li>
-              ))}
+                      <div style={{ fontSize: 14 }}>{s.name}</div>
+                      <div style={{ fontSize: 11, color: "#aaa" }}>
+                        Inversión: {invText}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#aaa" }}>
+                        {`${Math.round(s.N)} , ${Math.round(s.E)}`}
+                      </div>
+                    </div>
+
+                    <div style={{ marginLeft: 10 }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/store/${s.id}`);
+                        }}
+                        title="Ver Dashboard"
+                        style={{
+                          background: "#333",
+                          border: "1px solid #555",
+                          color: "white",
+                          borderRadius: 4,
+                          padding: "6px 10px",
+                          cursor: "pointer",
+                          fontSize: 14,
+                        }}
+                      >
+                        📊
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </aside>
