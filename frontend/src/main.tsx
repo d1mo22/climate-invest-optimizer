@@ -1,10 +1,34 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+// src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ConfigProvider, theme } from "antd";
+import esES from "antd/locale/es_ES";
+import AppLayout from "./layouts/AppLayout";
+import Home from "./pages/Home";
+import Map from "./pages/Map";
+import Dashboards from "./pages/DashBoards";
+import CountryDashboard from "./pages/CountryDashboard";
+import CountryMap from "./pages/CountryMap"; // 👈 IMPORTA ESTO
+import StoreDashboard from "./pages/StoreDashboard";
+import "antd/dist/reset.css";
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <ConfigProvider locale={esES} theme={{ algorithm: theme.darkAlgorithm }}>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/map" element={<Map />} />
+            <Route path="/dashboards" element={<Dashboards />} />
+            <Route path="/dashboard/:slug" element={<CountryDashboard />} />
+            <Route path="/country/:slug" element={<CountryMap />} /> {/* 👈 AQUI */}
+            <Route path="/store/:storeSlug" element={<StoreDashboard />} />
+            <Route path="*" element={<div style={{ color: "#fff" }}>404</div>} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ConfigProvider>
+  </React.StrictMode>
+);
