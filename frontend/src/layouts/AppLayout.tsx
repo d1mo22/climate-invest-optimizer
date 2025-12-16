@@ -10,7 +10,6 @@ export default function AppLayout() {
 
   // claves y enlaces RELATIVOS al layout
   const items = [
-    { key: "/", label: <Link to="/">Home</Link> },
     { key: "/map", label: <Link to="/map">Map</Link> },
     { key: "/dashboards", label: <Link to="/dashboards">Dashboards</Link> },
   ];

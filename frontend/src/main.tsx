@@ -9,7 +9,7 @@ import Home from "./pages/Home";
 import Map from "./pages/Map";
 import Dashboards from "./pages/DashBoards";
 import CountryDashboard from "./pages/CountryDashboard";
-import CountryMap from "./pages/CountryMap"; // 👈 IMPORTA ESTO
+import CountryMap from "./pages/CountryMap";
 import StoreDashboard from "./pages/StoreDashboard";
 import "antd/dist/reset.css";
 
@@ -18,15 +18,19 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ConfigProvider locale={esES} theme={{ algorithm: theme.darkAlgorithm }}>
       <BrowserRouter>
         <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/map" element={<Map />} />
-            <Route path="/dashboards" element={<Dashboards />} />
-            <Route path="/dashboard/:slug" element={<CountryDashboard />} />
-            <Route path="/country/:slug" element={<CountryMap />} /> {/* 👈 AQUI */}
-            <Route path="/store/:storeSlug" element={<StoreDashboard />} />
-            <Route path="*" element={<div style={{ color: "#fff" }}>404</div>} />
+          {/* HOME sin layout (sin navbar) */}
+          <Route path="/" element={<Home />} />
+
+          {/* Todo lo demás con layout */}
+          <Route path="/" element={<AppLayout />}>
+            <Route path="map" element={<Map />} />
+            <Route path="dashboards" element={<Dashboards />} />
+            <Route path="dashboard/:slug" element={<CountryDashboard />} />
+            <Route path="country/:slug" element={<CountryMap />} />
+            <Route path="store/:storeSlug" element={<StoreDashboard />} />
           </Route>
+
+          <Route path="*" element={<div style={{ color: "#fff" }}>404</div>} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
