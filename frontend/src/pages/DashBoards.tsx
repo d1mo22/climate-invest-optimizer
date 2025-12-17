@@ -1,10 +1,10 @@
+import React, { useMemo } from "react";
 import {
   PageContainer,
   ProCard,
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-
 import { useNavigate } from "react-router-dom";
 import { slugify } from "../utils/slugify";
 import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
@@ -13,32 +13,26 @@ import "../index.css";
 type Row = {
   key: number;
   país: string;
-  inversión: number; // €M (capex actual de referencia)
+  inversión: number; // €M
   ROI: string; // "12.3%"
 
-  // Riesgos
   riesgosTotales: number;
   riesgosResueltos: number;
   riesgosPendientes: number;
   pctRiesgosResueltos: string;
 
-  // Tiendas
   tiendasTotales: number;
   tiendasMejoradas: number;
   pctTiendasMejoradas: string;
 
-  // Extensiones para outlook y métricas financieras
-  beneficioAnual: number; // €M/año (aprox) -> usado p/ payback y "beneficios"
-  planNextYear: number; // €M (capex año siguiente estimado)
-  plan10y: number; // €M (capex agregado 10 años)
+  beneficioAnual: number; // €M/año
+  planNextYear: number; // €M
+  plan10y: number; // €M
 };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const roiToNum = (roi: string) => parseFloat(roi); // "12.3%" -> 12.3
+const roiToNum = (roi: string) => parseFloat(roi);
 
-/* ============================
-   DATA BASE + ENRIQUECIMIENTO
-============================ */
 const base: Array<Pick<Row, "key" | "país" | "inversión" | "ROI">> = [
   { key: 1, país: "Alemania", inversión: 150, ROI: "10.0%" },
   { key: 2, país: "Francia", inversión: 130, ROI: "11.0%" },
@@ -86,62 +80,58 @@ const base: Array<Pick<Row, "key" | "país" | "inversión" | "ROI">> = [
   { key: 44, país: "Liechtenstein", inversión: 4, ROI: "9.7%" },
 ];
 
-export const data: Row[] = base.map((d) => {
-  const roiNum = roiToNum(d.ROI);
+export const data: Row[] = base
+  .map((d) => {
+    const roiNum = roiToNum(d.ROI);
 
-  // Riesgos
-  const riesgosTotales = Math.max(6, Math.round(d.inversión * 0.18));
-  const ratioResueltos = clamp(0.45 + (roiNum - 10) * 0.02, 0.45, 0.9);
-  const riesgosResueltos = Math.min(
-    riesgosTotales,
-    Math.round(riesgosTotales * ratioResueltos)
-  );
-  const riesgosPendientes = riesgosTotales - riesgosResueltos;
-  const pctRiesgosResueltos = `${(
-    (riesgosResueltos / riesgosTotales) *
-    100
-  ).toFixed(1)}%`;
+    const riesgosTotales = Math.max(6, Math.round(d.inversión * 0.18));
+    const ratioResueltos = clamp(0.45 + (roiNum - 10) * 0.02, 0.45, 0.9);
+    const riesgosResueltos = Math.min(
+      riesgosTotales,
+      Math.round(riesgosTotales * ratioResueltos)
+    );
+    const riesgosPendientes = riesgosTotales - riesgosResueltos;
+    const pctRiesgosResueltos = `${(
+      (riesgosResueltos / riesgosTotales) *
+      100
+    ).toFixed(1)}%`;
 
-  // Tiendas
-  const tiendasTotales = Math.max(20, Math.round(d.inversión * 1.2));
-  const ratioTiendasMejoradas = clamp(0.35 + (roiNum - 10) * 0.03, 0.35, 0.9);
-  const tiendasMejoradas = Math.min(
-    tiendasTotales,
-    Math.round(tiendasTotales * ratioTiendasMejoradas)
-  );
-  const pctTiendasMejoradas = `${(
-    (tiendasMejoradas / tiendasTotales) *
-    100
-  ).toFixed(1)}%`;
+    const tiendasTotales = Math.max(20, Math.round(d.inversión * 1.2));
+    const ratioTiendasMejoradas = clamp(0.35 + (roiNum - 10) * 0.03, 0.35, 0.9);
+    const tiendasMejoradas = Math.min(
+      tiendasTotales,
+      Math.round(tiendasTotales * ratioTiendasMejoradas)
+    );
+    const pctTiendasMejoradas = `${(
+      (tiendasMejoradas / tiendasTotales) *
+      100
+    ).toFixed(1)}%`;
 
-  // Beneficio anual aproximado (ROI sobre la inversión de referencia)
-  const beneficioAnual = +(d.inversión * (roiNum / 100)).toFixed(1);
+    const beneficioAnual = +(d.inversión * (roiNum / 100)).toFixed(1);
+    const planNextYear = +(d.inversión * 0.4).toFixed(0);
+    const plan10y = +(d.inversión * 3.5).toFixed(0);
 
-  // Planes (demostrativos): año siguiente ~40% del capex de referencia; 10 años ~3.5x
-  const planNextYear = +(d.inversión * 0.4).toFixed(0);
-  const plan10y = +(d.inversión * 3.5).toFixed(0);
-
-  return {
-    ...d,
-    riesgosTotales,
-    riesgosResueltos,
-    riesgosPendientes,
-    pctRiesgosResueltos,
-    tiendasTotales,
-    tiendasMejoradas,
-    pctTiendasMejoradas,
-    beneficioAnual,
-    planNextYear,
-    plan10y,
-  };
-});
-
-// Orden y agregados
-data.sort((a, b) => b.inversión - a.inversión);
+    return {
+      ...d,
+      riesgosTotales,
+      riesgosResueltos,
+      riesgosPendientes,
+      pctRiesgosResueltos,
+      tiendasTotales,
+      tiendasMejoradas,
+      pctTiendasMejoradas,
+      beneficioAnual,
+      planNextYear,
+      plan10y,
+    };
+  })
+  .sort((a, b) => b.inversión - a.inversión);
 
 const inversionTotal = data.reduce((s, r) => s + r.inversión, 0);
 const totRiesgos = data.reduce((s, r) => s + r.riesgosTotales, 0);
 const totResueltos = data.reduce((s, r) => s + r.riesgosResueltos, 0);
+const percentRiesgos = totRiesgos ? totResueltos / totRiesgos : 0;
+
 const roiTotalPct =
   inversionTotal === 0
     ? 0
@@ -155,51 +145,44 @@ const pctTiendasMejoradasGlobal =
 
 const beneficioAnualTotal = data.reduce((s, r) => s + r.beneficioAnual, 0);
 const paybackMedio =
-  beneficioAnualTotal > 0 ? inversionTotal / beneficioAnualTotal : 0; // años
+  beneficioAnualTotal > 0 ? inversionTotal / beneficioAnualTotal : 0;
 
-const percentRiesgos = totRiesgos ? totResueltos / totRiesgos : 0;
+const euroM = (v: number) =>
+  new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 }).format(v);
 
-/* ============================
-   CONFIG GRÁFICOS
-============================ */
-// Gauge % riesgos resueltos
 const gaugeConfig = {
   percent: percentRiesgos,
   innerRadius: 0.9,
   range: { color: ["#2b2b2b", "#00ff88"] },
   indicator: undefined,
-    statistic: {
-      content: {
-        formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
-        style: { fontSize: "18px", color: "#fff" },
-      },
+  statistic: {
+    content: {
+      formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
+      style: { fontSize: "18px", color: "#fff", fontWeight: 800 },
     },
+  },
 };
 
-// DualAxes: inversión vs beneficios (2026-2035)
 const years = Array.from({ length: 10 }).map((_, i) => 2026 + i);
 const capex10yTotal = data.reduce((s, r) => s + r.plan10y, 0);
-const beneficios10yBase = beneficioAnualTotal * 10 * 0.9; // leve conservadurismo
+const beneficios10yBase = beneficioAnualTotal * 10 * 0.9;
 
-// distribuciones sencillas para demo
 const invSeries = years.map((y, i) => ({
   year: String(y),
   tipo: "Inversión (€M)",
   valor: Math.round(
     (capex10yTotal * (1 - i / years.length) * 2) / (years.length * 2)
-  ), // más front-loaded
+  ),
 }));
 const benSeries = years.map((y, i) => ({
   year: String(y),
   tipo: "Beneficios (€M)",
   valor: Math.round(
     (beneficios10yBase / years.length) * (0.8 + 0.4 * (i / (years.length - 1)))
-  ), // crecen
+  ),
 }));
-const dualData = [invSeries, benSeries];
-
 const dualConfig = {
-  data: dualData as any,
+  data: [invSeries, benSeries] as any,
   xField: "year",
   yField: ["valor", "valor"],
   geometryOptions: [
@@ -210,8 +193,7 @@ const dualConfig = {
   tooltip: { shared: true },
 };
 
-// Column: Top 10 inversión por país
-const top10 = [...data].sort((a, b) => b.inversión - a.inversión).slice(0, 10);
+const top10 = [...data].slice(0, 10);
 const columnConfig = {
   data: top10.map((d) => ({ país: d.país, inversión: d.inversión })),
   xField: "país",
@@ -220,16 +202,13 @@ const columnConfig = {
   tooltip: { showMarkers: false },
 };
 
-// Pie: distribución de inversión (Top 8 + resto)
-const top8 = [...data].sort((a, b) => b.inversión - a.inversión).slice(0, 8);
-const rest = data.slice(8);
-const restSum = rest.reduce((s, r) => s + r.inversión, 0);
-const pieData = [
-  ...top8.map((d) => ({ name: d.país, value: d.inversión })),
-  ...(restSum > 0 ? [{ name: "Resto", value: restSum }] : []),
-];
+const top8 = [...data].slice(0, 8);
+const restSum = data.slice(8).reduce((s, r) => s + r.inversión, 0);
 const pieConfig = {
-  data: pieData,
+  data: [
+    ...top8.map((d) => ({ name: d.país, value: d.inversión })),
+    ...(restSum > 0 ? [{ name: "Resto", value: restSum }] : []),
+  ],
   angleField: "value",
   colorField: "name",
   legend: { position: "right" as const },
@@ -237,181 +216,299 @@ const pieConfig = {
   interactions: [{ type: "element-active" }],
 };
 
+function KPI({
+  title,
+  value,
+  suffix,
+  hint,
+}: {
+  title: string;
+  value: React.ReactNode;
+  suffix?: string;
+  hint?: string;
+}) {
+  return (
+    <ProCard
+      bordered
+      style={{
+        borderRadius: 16,
+        overflow: "hidden",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+        border: "1px solid rgba(255,255,255,0.10)",
+      }}
+      bodyStyle={{ padding: 14 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+            {title}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 22, fontWeight: 900 }}>
+            {value}{" "}
+            {suffix ? (
+              <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 700 }}>
+                {suffix}
+              </span>
+            ) : null}
+          </div>
+          {hint ? (
+            <div style={{ marginTop: 2, fontSize: 12, opacity: 0.6 }}>
+              {hint}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </ProCard>
+  );
+}
+
 export default function Dashboards() {
   const navigate = useNavigate();
 
+  const headerExtra = useMemo(
+    () => [
+      <button
+        key="map"
+        onClick={() => navigate("/map")}
+        style={{
+          cursor: "pointer",
+          borderRadius: 12,
+          padding: "10px 12px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background:
+            "linear-gradient(135deg, rgba(0,255,136,0.95), rgba(75,107,253,0.95))",
+          color: "#0b0b0f",
+          fontWeight: 900,
+          boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
+        }}
+      >
+        Ir al Mapa →
+      </button>,
+    ],
+    [navigate]
+  );
+
   return (
-    <PageContainer
-      header={{
-        title: "📊 Europa — Overview compañía",
-        extra: [
-          <button key="map" onClick={() => navigate("/map")}>
-            Ir al Mapa
-          </button>,
-        ],
+    <div
+      style={{
+        minHeight: "100%",
+        padding: 8,
+        borderRadius: 18,
+        background:
+          "radial-gradient(900px 520px at 15% 5%, rgba(0,255,136,0.10), transparent 60%)," +
+          "radial-gradient(820px 520px at 85% 25%, rgba(75,107,253,0.12), transparent 55%)",
       }}
     >
-      <ProCard direction="column" gutter={[12, 12]} ghost>
-        {/* KPIs + Gauge */}
-        <ProCard split="vertical" ghost>
-          <ProCard colSpan="70%" gutter={12} wrap ghost>
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Inversión total (€M)",
-                value: inversionTotal,
-                precision: 0,
-                suffix: "M",
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "ROI total (pond.)",
-                value: roiTotalPct,
-                precision: 1,
-                suffix: "%",
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "% Tiendas mejoradas",
-                value: pctTiendasMejoradasGlobal,
-                precision: 1,
-                suffix: "%",
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Payback medio (años)",
-                value: paybackMedio,
-                precision: 1,
-              }}
-              style={{ minWidth: 220 }}
-            />
-          </ProCard>
+      <PageContainer
+        header={{
+          title: "📊 Europa — Overview compañía",
+          extra: headerExtra,
+          style: {
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            marginBottom: 12,
+          },
+        }}
+        style={{ background: "transparent" }}
+      >
+        <ProCard direction="column" gutter={[12, 12]} ghost>
+          {/* KPIs + Gauge */}
+          <ProCard split="vertical" ghost>
+            <ProCard colSpan="70%" gutter={12} wrap ghost>
+              <KPI title="Inversión total" value={euroM(inversionTotal)} suffix="€M" />
+              <KPI title="ROI total (pond.)" value={roiTotalPct.toFixed(1)} suffix="%" />
+              <KPI
+                title="% Tiendas mejoradas"
+                value={pctTiendasMejoradasGlobal.toFixed(1)}
+                suffix="%"
+              />
+              <KPI
+                title="Payback medio"
+                value={paybackMedio.toFixed(1)}
+                suffix="años"
+              />
+            </ProCard>
 
-          <ProCard
-            colSpan="30%"
-            bordered
-            style={{ display: "grid", placeItems: "center" }}
-          >
-            <div style={{ width: 180, height: 180 }}>
-              <Gauge {...gaugeConfig} />
-            </div>
-            <div
+            <ProCard
+              colSpan="30%"
+              bordered
               style={{
-                textAlign: "center",
-                marginTop: 6,
-                opacity: 0.85,
-                fontSize: 12,
+                borderRadius: 16,
+                display: "grid",
+                placeItems: "center",
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+                border: "1px solid rgba(255,255,255,0.10)",
               }}
+              bodyStyle={{ padding: 14 }}
             >
-              {totResueltos.toLocaleString()} / {totRiesgos.toLocaleString()}{" "}
-              riesgos resueltos
-            </div>
+              <div style={{ width: 190, height: 190 }}>
+                <Gauge {...gaugeConfig} />
+              </div>
+              <div style={{ textAlign: "center", marginTop: 6, opacity: 0.85, fontSize: 12 }}>
+                {totResueltos.toLocaleString()} / {totRiesgos.toLocaleString()} riesgos resueltos
+              </div>
+            </ProCard>
           </ProCard>
-        </ProCard>
 
-        {/* Outlook 10 años + Top inversión + Distribución */}
-        <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
-          {/* Izquierda: DualAxes ocupa toda la altura disponible de la fila */}
+          {/* Outlook 10 años + Top inversión + Distribución */}
+          <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
+            <ProCard
+              colSpan="50%"
+              bordered
+              title="Inversión vs Beneficios (2026–2035)"
+              size="small"
+              style={{
+                height: "100%",
+                borderRadius: 16,
+                overflow: "hidden",
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+                border: "1px solid rgba(255,255,255,0.10)",
+              }}
+              bodyStyle={{ padding: 14, height: "100%" }}
+            >
+              <DualAxes {...dualConfig} />
+            </ProCard>
+
+            <ProCard
+              colSpan="50%"
+              ghost
+              style={{ display: "flex", flexDirection: "column", gap: 12 }}
+            >
+              <ProCard
+                bordered
+                title="Top 10 inversión por país"
+                size="small"
+                style={{
+                  flex: 1,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                }}
+                bodyStyle={{ padding: 14, height: "100%" }}
+              >
+                <Column {...columnConfig} />
+              </ProCard>
+
+              <ProCard
+                bordered
+                title="Distribución inversión (Top 8 + resto)"
+                size="small"
+                style={{
+                  flex: 1,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                }}
+                bodyStyle={{ padding: 14, height: "100%" }}
+              >
+                <Pie {...pieConfig} />
+              </ProCard>
+            </ProCard>
+          </ProCard>
+
+          {/* Tabla */}
           <ProCard
-            colSpan="50%"
             bordered
-            title="Inversión vs Beneficios (2026–2035)"
+            title="Detalle por país"
             size="small"
-            style={{ height: "100%" }}
-            bodyStyle={{ padding: 16, height: "100%" }}
+            style={{
+              borderRadius: 16,
+              overflow: "hidden",
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+            bodyStyle={{ padding: 0 }}
           >
-            <DualAxes {...dualConfig} />
-          </ProCard>
-
-          {/* Derecha: dos cards apilados que rellenan toda la columna */}
-          <ProCard
-            colSpan="50%"
-            ghost
-            style={{ display: "flex", flexDirection: "column", gap: 12 }}
-          >
-            <ProCard
-              bordered
-              title="Top 10 inversión por país"
+            <ProTable<Row>
+              rowKey="key"
+              dataSource={data}
+              search={false}
+              options={false}
+              pagination={false}
               size="small"
-              style={{ flex: 1 }}
-              bodyStyle={{ padding: 16, height: "100%" }}
-            >
-              <Column {...columnConfig} />
-            </ProCard>
-
-            <ProCard
-              bordered
-              title="Distribución inversión (Top 8 + resto)"
-              size="small"
-              style={{ flex: 1 }}
-              bodyStyle={{ padding: 16, height: "100%" }}
-            >
-              <Pie {...pieConfig} />
-            </ProCard>
+              scroll={{ y: 460, x: true }}
+              sticky
+              toolBarRender={false}
+              columns={[
+                {
+                  title: "País",
+                  dataIndex: "país",
+                  width: 200,
+                  fixed: "left" as const,
+                  sorter: (a, b) => a.país.localeCompare(b.país),
+                  render: (_: any, record: Row) => (
+                    <a
+                      onClick={() => navigate(`/dashboard/${slugify(record.país)}`)}
+                      style={{
+                        cursor: "pointer",
+                        color: "rgba(255,255,255,0.92)",
+                        textDecoration: "none",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {record.país}
+                    </a>
+                  ),
+                },
+                {
+                  title: "Inversión (€M)",
+                  dataIndex: "inversión",
+                  align: "right",
+                  width: 150,
+                  sorter: (a, b) => a.inversión - b.inversión,
+                  render: (v: number) => (
+                    <span style={{ fontWeight: 800 }}>{euroM(v)}</span>
+                  ),
+                },
+                {
+                  title: "ROI",
+                  dataIndex: "ROI",
+                  align: "right",
+                  width: 100,
+                  sorter: (a, b) => roiToNum(a.ROI) - roiToNum(b.ROI),
+                },
+                {
+                  title: "Riesgos resueltos",
+                  dataIndex: "riesgosResueltos",
+                  align: "right",
+                  width: 160,
+                  render: (v: number, r: Row) => (
+                    <span style={{ opacity: 0.92 }}>
+                      {v.toLocaleString()}{" "}
+                      <span style={{ opacity: 0.6, fontWeight: 700 }}>
+                        ({r.pctRiesgosResueltos})
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  title: "Tiendas mejoradas",
+                  dataIndex: "tiendasMejoradas",
+                  align: "right",
+                  width: 180,
+                  render: (v: number, r: Row) => (
+                    <span style={{ opacity: 0.92 }}>
+                      {v.toLocaleString()}{" "}
+                      <span style={{ opacity: 0.6, fontWeight: 700 }}>
+                        ({r.pctTiendasMejoradas})
+                      </span>
+                    </span>
+                  ),
+                },
+              ]}
+            />
           </ProCard>
         </ProCard>
-
-        {/* Tabla compacta por país */}
-        <ProCard bordered title="Detalle por país" size="small">
-          <ProTable<Row>
-            rowKey="key"
-            dataSource={data}
-            search={false}
-            options={false}
-            pagination={false}
-            size="small"
-            scroll={{ y: 420, x: true }}
-            columns={[
-              {
-                title: "País",
-                dataIndex: "país",
-                width: 180,
-                fixed: "left" as const,
-                sorter: (a, b) => a.país.localeCompare(b.país),
-                render: (_: any, record: Row) => (
-                  <a
-                    onClick={() => navigate(`/dashboard/${slugify(record.país)}`)}
-                    style={{ cursor: "pointer", color: "#fff", textDecoration: "none" }}
-                  >
-                    {record.país}
-                  </a>
-                ),
-              },
-              {
-                title: "Inversión (€M)",
-                dataIndex: "inversión",
-                align: "right",
-                width: 140,
-                sorter: (a, b) => a.inversión - b.inversión,
-              },
-              { title: "ROI", dataIndex: "ROI", align: "right", width: 90, sorter: (a, b) => roiToNum(a.ROI) - roiToNum(b.ROI) },
-              {
-                title: "Riesgos resueltos",
-                dataIndex: "riesgosResueltos",
-                align: "right",
-                width: 160,
-              },
-              {
-                title: "Tiendas mejoradas",
-                dataIndex: "tiendasMejoradas",
-                align: "right",
-                width: 170,
-              },
-            ]}
-            sticky
-            toolBarRender={false}
-          />
-        </ProCard>
-      </ProCard>
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 }

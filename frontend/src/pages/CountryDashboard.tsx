@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PageContainer,
   ProCard,
@@ -11,7 +11,9 @@ import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { data as allCountriesData } from "./DashBoards";
 import { slugify } from "../utils/slugify";
 
-// Alias: slug inglés → nombre español (mismo que en CountryMap)
+/* =========================
+   Alias slug -> nombre país
+========================= */
 const ALIAS: Record<string, string> = {
   spain: "España",
   germany: "Alemania",
@@ -60,7 +62,6 @@ const ALIAS: Record<string, string> = {
   belarus: "Bielorrusia",
 };
 
-// Datos de ejemplo para un país individual (si es necesario un fallback)
 const exampleCountryData = {
   país: "España",
   inversión: 120,
@@ -77,7 +78,6 @@ const exampleCountryData = {
   plan10y: 420,
 };
 
-// Datos de riesgos por país (ejemplo)
 const risksByCountry: Record<
   string,
   Array<{
@@ -242,48 +242,63 @@ const risksByCountry: Record<
   ],
 };
 
+/* =========================
+   Helpers UI (suaviza look)
+========================= */
+const cardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  overflow: "hidden",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+  border: "1px solid rgba(255,255,255,0.10)",
+};
+const cardBody = { padding: 14 };
+
+const softButton: React.CSSProperties = {
+  cursor: "pointer",
+  borderRadius: 12,
+  padding: "10px 12px",
+  border: "1px solid rgba(255,255,255,0.12)",
+  background:
+    "linear-gradient(135deg, rgba(0,255,136,0.95), rgba(75,107,253,0.95))",
+  color: "#0b0b0f",
+  fontWeight: 900,
+  boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
+};
+
+const subtleBtn: React.CSSProperties = {
+  cursor: "pointer",
+  borderRadius: 12,
+  padding: "10px 12px",
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(255,255,255,0.06)",
+  color: "rgba(255,255,255,0.92)",
+  fontWeight: 800,
+};
+
+const pctColor = (v: number) => (v >= 0.8 ? "#00ff88" : v >= 0.5 ? "#faad14" : "#ff4d4f");
+
+const scoreColor = (score: number) =>
+  score > 80 ? "#ff4d4f" : score > 50 ? "#faad14" : "#52c41a";
+
 export default function CountryDashboard() {
   const navigate = useNavigate();
   const { slug = "" } = useParams<{ slug: string }>();
 
-  // Debug: mostrar qué slugs tenemos y cuál buscamos
-  const availableSlugs = allCountriesData.map((c) => ({
-    país: c.país,
-    slug: slugify(c.país),
-  }));
-  console.log("🔍 Slug buscado:", slug);
-  console.log("📋 Slugs disponibles:", availableSlugs);
+  // 1) slug español
+  let countryData = allCountriesData.find((c) => slugify(c.país) === slug);
 
-  // Intentar encontrar el país por:
-  // 1. Slug directo en español (ej: "alemania")
-  // 2. Slug en inglés mediante ALIAS (ej: "germany" → "Alemania")
-  let countryData = allCountriesData.find((country) => {
-    return slugify(country.país) === slug;
-  });
-
-  // Si no encuentra por slug español, buscar por slug inglés
+  // 2) slug inglés -> alias -> país
   if (!countryData && ALIAS[slug]) {
-    const countryName = ALIAS[slug];
-    countryData = allCountriesData.find((country) => {
-      return country.país === countryName;
-    });
+    const name = ALIAS[slug];
+    countryData = allCountriesData.find((c) => c.país === name);
   }
 
-  // Si no encuentra el país, usar datos de ejemplo
-  if (!countryData) {
-    console.warn(
-      `⚠️ País no encontrado para slug "${slug}", usando datos de ejemplo`
-    );
-    countryData = exampleCountryData as any;
-  }
+  if (!countryData) countryData = exampleCountryData as any;
+  const data = countryData as any;
 
-  // Garantizar que countryData no es undefined (TypeScript)
-  const data = countryData!;
-
-  // ===== Datos de riesgos =====
   const countryRisks = risksByCountry[data.país] || risksByCountry["España"];
 
-  // ===== Tiendas y prioridad (cargar CSV y generar score simple) =====
   const [stores, setStores] = useState<Array<any>>([]);
   const [loadingStores, setLoadingStores] = useState<boolean>(true);
 
@@ -295,6 +310,7 @@ export default function CountryDashboard() {
         const text = await res.text();
         const [headerLine, ...lines] = text.trim().split(/\r?\n/);
         const headers = headerLine.split(",").map((h) => h.trim());
+
         const rows = lines.map((line) => {
           const vals = line.split(",").map((v) => v.trim());
           const row: any = {};
@@ -302,20 +318,23 @@ export default function CountryDashboard() {
           return row;
         });
 
-        // Filtrar por país (nombre en español tal como aparece en CSV)
         const countryName = data.país;
-        const filtered = rows.filter((r: any) => (r.country || "").trim() === countryName);
+        const filtered = rows.filter(
+          (r: any) => (r.country || "").trim() === countryName
+        );
 
-        // Enriquecer y calcular prioridad (simulado)
         const enriched = filtered.map((s: any) => {
-          const currentRoi = +(Math.random() * 15 + 2).toFixed(1); // 2 - 17%
-          const riskLevel = Math.random() > 0.6 ? "Alto" : Math.random() > 0.5 ? "Medio" : "Bajo";
+          const currentRoi = +(Math.random() * 15 + 2).toFixed(1);
+          const riskLevel =
+            Math.random() > 0.6 ? "Alto" : Math.random() > 0.5 ? "Medio" : "Bajo";
+
           let score = 0;
           if (riskLevel === "Alto") score += 50;
           if (riskLevel === "Medio") score += 30;
           if (currentRoi < 5) score += 40;
           else if (currentRoi < 10) score += 20;
           score = Math.min(Math.round(score + Math.random() * 10), 100);
+
           return {
             id: s.id,
             name: s.name,
@@ -335,30 +354,32 @@ export default function CountryDashboard() {
         setLoadingStores(false);
       }
     };
+
     loadStores();
   }, [data.país]);
 
-  // Riesgos más frecuentes
   const frequencyOrder = { Alta: 1, Media: 2, Baja: 3 };
-  const mostFrequentRisks = [...countryRisks]
-    .sort((a, b) => frequencyOrder[a.frecuencia] - frequencyOrder[b.frecuencia])
-    .slice(0, 5);
+  const mostFrequentRisks = useMemo(
+    () =>
+      [...countryRisks]
+        .sort((a, b) => frequencyOrder[a.frecuencia] - frequencyOrder[b.frecuencia])
+        .slice(0, 5),
+    [countryRisks]
+  );
 
-  // Riesgos más expuestos (por tiendas afectadas)
-  const mostExposedRisks = [...countryRisks]
-    .sort((a, b) => b.tiendas_afectadas - a.tiendas_afectadas)
-    .slice(0, 5);
+  const mostExposedRisks = useMemo(
+    () => [...countryRisks].sort((a, b) => b.tiendas_afectadas - a.tiendas_afectadas).slice(0, 5),
+    [countryRisks]
+  );
 
-  // Distribución de riesgos por categoría (tipo)
-  const risksByType = countryRisks.reduce((acc, risk) => {
-    const existing = acc.find((r) => r.tipo === risk.tipo);
-    if (existing) {
-      existing.cantidad++;
-    } else {
-      acc.push({ tipo: risk.tipo, cantidad: 1 });
-    }
-    return acc;
-  }, [] as Array<{ tipo: string; cantidad: number }>);
+  const risksByType = useMemo(() => {
+    return countryRisks.reduce((acc, risk) => {
+      const existing = acc.find((r) => r.tipo === risk.tipo);
+      if (existing) existing.cantidad++;
+      else acc.push({ tipo: risk.tipo, cantidad: 1 });
+      return acc;
+    }, [] as Array<{ tipo: string; cantidad: number }>);
+  }, [countryRisks]);
 
   const riskTypeConfig = {
     data: risksByType,
@@ -369,7 +390,6 @@ export default function CountryDashboard() {
     interactions: [{ type: "element-active" }],
   };
 
-  // Gauge % riesgos resueltos
   const percentRiesgos = data.riesgosTotales
     ? data.riesgosResueltos / data.riesgosTotales
     : 0;
@@ -382,24 +402,23 @@ export default function CountryDashboard() {
     statistic: {
       content: {
         formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
-        style: { fontSize: "18px", color: "#fff" },
+        style: { fontSize: "18px", color: "#fff", fontWeight: 900 },
       },
     },
   } as any;
 
-  // Area: Evolución anual 10 años (Capex proyectado + Beneficios)
   const years = Array.from({ length: 10 }).map((_, i) => 2026 + i);
-  const yearlyCapex = data.plan10y / 10; // distribuido
+  const yearlyCapex = data.plan10y / 10;
   const yearlyBenefit = data.beneficioAnual;
 
   const areaData = years.map((year, i) => ({
     year: String(year),
     "Capex (€M)": Math.round(
       yearlyCapex * (1.2 - 0.2 * (i / (years.length - 1)))
-    ), // decrece
+    ),
     "Beneficios (€M)": Math.round(
       yearlyBenefit * (0.7 + 0.3 * (i / (years.length - 1)))
-    ), // crece
+    ),
   }));
 
   const areaConfig = {
@@ -407,20 +426,17 @@ export default function CountryDashboard() {
     xField: "year",
     yField: "Capex (€M)",
     smooth: true,
-    animation: { appear: { animation: "path-in", duration: 1000 } },
+    animation: { appear: { animation: "path-in", duration: 900 } },
     legend: { position: "top" as const },
     tooltip: { shared: true },
   } as any;
 
-  // Pie: Distribución de tiendas
   const tiendasNoMejoradas = data.tiendasTotales - data.tiendasMejoradas;
-  const pieDataTiendas = [
-    { name: "Mejoradas", value: data.tiendasMejoradas },
-    { name: "Por mejorar", value: tiendasNoMejoradas },
-  ];
-
   const pieConfig = {
-    data: pieDataTiendas,
+    data: [
+      { name: "Mejoradas", value: data.tiendasMejoradas },
+      { name: "Por mejorar", value: tiendasNoMejoradas },
+    ],
     angleField: "value",
     colorField: "name",
     color: ["#00ff88", "#666"],
@@ -429,14 +445,11 @@ export default function CountryDashboard() {
     interactions: [{ type: "element-active" }],
   };
 
-  // Column: Riesgos (resueltos vs pendientes)
-  const columnData = [
-    { tipo: "Resueltos", cantidad: data.riesgosResueltos },
-    { tipo: "Pendientes", cantidad: data.riesgosPendientes },
-  ];
-
   const columnConfig = {
-    data: columnData,
+    data: [
+      { tipo: "Resueltos", cantidad: data.riesgosResueltos },
+      { tipo: "Pendientes", cantidad: data.riesgosPendientes },
+    ],
     xField: "tipo",
     yField: "cantidad",
     legend: { position: "bottom" as const },
@@ -444,15 +457,10 @@ export default function CountryDashboard() {
     tooltip: { showMarkers: false },
   } as any;
 
-  // Tabla detalle de filas
-  const tableData: Array<{
-    key: string;
-    metrica: string;
-    valor: string | number;
-  }> = [
+  const tableData = [
     { key: "1", metrica: "Inversión total", valor: `${data.inversión}M€` },
     { key: "2", metrica: "ROI", valor: data.ROI },
-    { key: "3", metrica: "Total ahorrado", valor: `${data.beneficioAnual}M€` },
+    { key: "3", metrica: "Beneficio anual", valor: `${data.beneficioAnual}M€` },
     {
       key: "4",
       metrica: "Payback",
@@ -475,427 +483,436 @@ export default function CountryDashboard() {
   ];
 
   return (
-    <PageContainer
-      header={{
-        title: `📊 ${data.país} — Dashboard`,
-        extra: [
-          <button key="map" onClick={() => navigate(`/country/${slug}`)}>
-            Ver Mapa
-          </button>,
-          <button key="all" onClick={() => navigate("/dashboards")}>
-            Todos los países
-          </button>,
-        ],
+    <div
+      style={{
+        minHeight: "100%",
+        padding: 8,
+        borderRadius: 18,
+        background:
+          "radial-gradient(900px 520px at 15% 5%, rgba(0,255,136,0.10), transparent 60%)," +
+          "radial-gradient(820px 520px at 85% 25%, rgba(75,107,253,0.12), transparent 55%)",
       }}
     >
-      <ProCard direction="column" gutter={[12, 12]} ghost>
-        {/* KPIs + Gauge */}
-        <ProCard split="vertical" ghost>
-          <ProCard colSpan="70%" gutter={12} wrap ghost>
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Inversión (€M)",
-                value: data.inversión,
-                precision: 0,
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "ROI",
-                value: parseFloat(data.ROI),
-                precision: 1,
-                suffix: "%",
-              }}
-              style={{ minWidth: 220}}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Tiendas mejoradas",
-                value: parseFloat(data.pctTiendasMejoradas),
-                precision: 1,
-                suffix: "%",
-              }}
-              style={{ minWidth: 220 }}
-            />
-            <StatisticCard
-              bordered
-              statistic={{
-                title: "Payback",
-                value: (data.inversión / data.beneficioAnual).toFixed(1),
-                suffix: "años",
-              }}
-              style={{ minWidth: 220 }}
-            />
-          </ProCard>
-
-          <ProCard
-            colSpan="30%"
-            bordered
-            style={{ display: "grid", placeItems: "center" }}
-          >
-            <div style={{ width: 180, height: 180 }}>
-              <Gauge {...gaugeConfig} />
-            </div>
-            <div
-              style={{
-                textAlign: "center",
-                marginTop: 6,
-                opacity: 0.85,
-                fontSize: 12,
-              }}
+      <PageContainer
+        header={{
+          title: `📊 ${data.país} — Dashboard`,
+          extra: [
+            <button
+              key="map"
+              onClick={() => navigate(`/country/${slug}`)}
+              style={softButton}
             >
-              {data.riesgosResueltos} / {data.riesgosTotales} riesgos resueltos
-            </div>
-          </ProCard>
-          </ProCard>
-        {/* Gráficos */}
-        <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
-          <ProCard
-            colSpan="50%"
-            bordered
-            title="Capex vs Beneficios (2026–2035)"
-            size="small"
-            style={{ height: "100%" }}
-            bodyStyle={{ padding: 16, height: "100%" }}
-          >
-            <Area {...areaConfig} />
-          </ProCard>
-
-          <ProCard
-            colSpan="50%"
-            ghost
-            style={{ display: "flex", flexDirection: "column", gap: 12 }}
-          >
-            <ProCard
-              bordered
-              title="Estado de riesgos"
-              size="small"
-              style={{ flex: 1 }}
-              bodyStyle={{ padding: 16, height: "100%" }}
+              Ver Mapa →
+            </button>,
+            <button
+              key="all"
+              onClick={() => navigate("/dashboards")}
+              style={subtleBtn}
             >
-              <Column {...columnConfig} />
+              Todos los países
+            </button>,
+          ],
+          style: {
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            marginBottom: 12,
+          },
+        }}
+        style={{ background: "transparent" }}
+      >
+        <ProCard direction="column" gutter={[12, 12]} ghost>
+          {/* KPIs + Gauge */}
+          <ProCard split="vertical" ghost>
+            <ProCard colSpan="70%" gutter={12} wrap ghost>
+              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
+                <StatisticCard
+                  statistic={{ title: "Inversión (€M)", value: data.inversión, precision: 0 }}
+                />
+              </ProCard>
+
+              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
+                <StatisticCard
+                  statistic={{
+                    title: "ROI",
+                    value: parseFloat(data.ROI),
+                    precision: 1,
+                    suffix: "%",
+                  }}
+                />
+              </ProCard>
+
+              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
+                <StatisticCard
+                  statistic={{
+                    title: "Tiendas mejoradas",
+                    value: parseFloat(data.pctTiendasMejoradas),
+                    precision: 1,
+                    suffix: "%",
+                  }}
+                />
+              </ProCard>
+
+              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
+                <StatisticCard
+                  statistic={{
+                    title: "Payback",
+                    value: (data.inversión / data.beneficioAnual).toFixed(1),
+                    suffix: "años",
+                  }}
+                />
+              </ProCard>
             </ProCard>
-            <ProCard
-              bordered
-              title="Tiendas mejoradas"
-              size="small"
-              style={{ flex: 1 }}
-              bodyStyle={{ padding: 16, height: "100%" }}
-            >
-              <Pie {...pieConfig} />
+
+            <ProCard bordered colSpan="30%" style={cardStyle} bodyStyle={cardBody}>
+              <div style={{ display: "grid", placeItems: "center" }}>
+                <div style={{ width: 190, height: 190 }}>
+                  <Gauge {...gaugeConfig} />
+                </div>
+
+                <div style={{ textAlign: "center", marginTop: 6, opacity: 0.85, fontSize: 12 }}>
+                  {data.riesgosResueltos} / {data.riesgosTotales} riesgos resueltos
+                </div>
+              </div>
             </ProCard>
           </ProCard>
-        </ProCard>
 
-        {/* Tabla de métricas */}
-        <ProCard bordered title="Métricas detalladas" size="small">
-          <ProTable<{ key: string; metrica: string; valor: string | number }>
-            rowKey="key"
-            dataSource={tableData}
-            search={false}
-            options={false}
-            pagination={false}
-            size="small"
-            columns={[
-              { title: "Métrica", dataIndex: "metrica", width: "50%" },
-              {
-                title: "Valor",
-                dataIndex: "valor",
-                width: "50%",
-                align: "right" as const,
-              },
-            ]}
-            toolBarRender={false}
-          />
-        </ProCard>
-
-        {/* Prioridad de inversión — Tiendas */}
-        <ProCard bordered title="📌 Prioridad de inversión — Tiendas" size="small" style={{ marginTop: 12 }}>
-          <ProTable<any>
-            rowKey="id"
-            loading={loadingStores}
-            dataSource={stores}
-            search={false}
-            options={false}
-            pagination={{ pageSize: 6 }}
-            size="small"
-            columns={[
-              {
-                title: "#",
-                render: (_: any, __: any, index: number) => index + 1,
-                width: 60,
-                align: "center" as const,
-              },
-              {
-                title: "Tienda",
-                dataIndex: "name",
-                render: (_text: any, record: any) => (
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{record.name}</div>
-                    <div style={{ fontSize: 12, color: '#888' }}>ID: {record.id}</div>
-                  </div>
-                ),
-              },
-              {
-                title: "Urgencia (Score)",
-                dataIndex: "priorityScore",
-                render: (_: any, record: any) => (
-                  <div style={{ width: 140 }}>
-                    <Progress
-                      percent={record.priorityScore}
-                      showInfo={false}
-                      strokeColor={record.priorityScore > 80 ? '#ff4d4f' : record.priorityScore > 50 ? '#faad14' : '#52c41a'}
-                    />
-                    <div style={{ fontSize: 12, textAlign: 'right', marginTop: 4 }}>{record.priorityScore}/100</div>
-                  </div>
-                ),
-              },
-              {
-                title: "ROI Actual",
-                dataIndex: "roi",
-                render: (_: any, record: any) => `${record.roi}%`,
-              },
-              {
-                title: "Inversión necesaria",
-                dataIndex: "investmentNeeded",
-                align: "right" as const,
-              },
-              {
-                title: "Acción",
-                valueType: "option",
-                render: (_: any, record: any) => [
-                  <Button
-                    key="view"
-                    type="primary"
-                    size="small"
-                    onClick={() => navigate(`/store/${record.id}`)}
-                  >
-                    Analizar
-                  </Button>,
-                ],
-              },
-            ]}
-            toolBarRender={false}
-          />
-        </ProCard>
-
-        {/* Análisis de Riesgos */}
-        <ProCard
-          bordered
-          title="⚠️ Análisis de Riesgos"
-          size="small"
-          style={{ marginTop: 12 }}
-        >
-          <ProCard split="vertical" ghost style={{ display: "flex", gap: 12, alignItems: "stretch", height: "100%" }}>
+          {/* Charts */}
+          <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
             <ProCard
               colSpan="50%"
               bordered
-              title="Distribución por tipo"
+              title="Capex vs Beneficios (2026–2035)"
               size="small"
-              style={{ flex: 1, height: "100%" }}
-              bodyStyle={{ padding: 16, display: "flex", justifyContent: "center", alignItems: "center" }}
+              style={cardStyle}
+              bodyStyle={{ padding: 14, height: "100%" }}
             >
-              <Pie {...riskTypeConfig} />
+              <Area {...areaConfig} />
             </ProCard>
 
             <ProCard
               colSpan="50%"
               ghost
-              style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}
+              style={{ display: "flex", flexDirection: "column", gap: 12 }}
             >
               <ProCard
                 bordered
-                title="Riesgos más frecuentes"
+                title="Estado de riesgos"
                 size="small"
-                style={{ flex: 1, height: "100%" }}
-                bodyStyle={{ padding: 16, display: "flex", flexDirection: "column" }}
+                style={{ ...cardStyle, flex: 1 }}
+                bodyStyle={{ padding: 14, height: "100%" }}
               >
-                <ProTable<(typeof mostFrequentRisks)[0]>
-                  rowKey="id"
-                  dataSource={mostFrequentRisks}
-                  search={false}
-                  options={false}
-                  pagination={false}
-                  size="small"
-                  columns={[
-                    { title: "Tipo", dataIndex: "tipo", width: "30%" },
-                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
-                    {
-                      title: "Frecuencia",
-                      dataIndex: "frecuencia",
-                      width: "20%",
-                      render: (_, record) => (
-                        <span
-                          style={{
-                            color:
-                              record.frecuencia === "Alta"
-                                ? "#ff4d4f"
-                                : record.frecuencia === "Media"
-                                ? "#faad14"
-                                : "#52c41a",
-                          }}
-                        >
-                          {record.frecuencia}
-                        </span>
-                      ),
-                    },
-                  ]}
-                  toolBarRender={false}
-                />
+                <Column {...columnConfig} />
               </ProCard>
 
               <ProCard
                 bordered
-                title="Riesgos más expuestos"
+                title="Tiendas mejoradas"
                 size="small"
-                style={{ flex: 1, height: "100%" }}
-                bodyStyle={{ padding: 16, display: "flex", flexDirection: "column" }}
+                style={{ ...cardStyle, flex: 1 }}
+                bodyStyle={{ padding: 14, height: "100%" }}
               >
-                <ProTable<(typeof mostExposedRisks)[0]>
-                  rowKey="id"
-                  dataSource={mostExposedRisks}
-                  search={false}
-                  options={false}
-                  pagination={false}
-                  size="small"
-                  columns={[
-                    { title: "Tipo", dataIndex: "tipo", width: "25%" },
-                    { title: "Descripción", dataIndex: "descripcion", width: "40%" },
-                    {
-                      title: "Tiendas afectadas",
-                      dataIndex: "tiendas_afectadas",
-                      width: "20%",
-                      align: "right" as const,
-                    },
-                    {
-                      title: "Impacto",
-                      dataIndex: "impacto",
-                      width: "15%",
-                      render: (_, record) => (
-                        <span
-                          style={{
-                            color:
-                              record.impacto === "Alto"
-                                ? "#ff4d4f"
-                                : record.impacto === "Medio"
-                                ? "#faad14"
-                                : "#52c41a",
-                          }}
-                        >
-                          {record.impacto}
-                        </span>
-                      ),
-                    },
-                  ]}
-                  toolBarRender={false}
-                />
+                <Pie {...pieConfig} />
               </ProCard>
             </ProCard>
           </ProCard>
-        </ProCard>
 
-        {/* Tabla completa de riesgos */}
-        <ProCard
-          bordered
-          title="📋 Detalle completo de riesgos"
-          size="small"
-          style={{ marginTop: 12 }}
-        >
-          <ProTable<(typeof countryRisks)[0]>
-            rowKey="id"
-            dataSource={countryRisks}
-            search={false}
-            options={false}
-            pagination={{ pageSize: 10 }}
+          {/* Tabla métricas */}
+          <ProCard
+            bordered
+            title="Métricas detalladas"
             size="small"
-            scroll={{ x: true }}
-            columns={[
-              {
-                title: "Tipo",
-                dataIndex: "tipo",
-                width: 120,
-                sorter: (a, b) => a.tipo.localeCompare(b.tipo),
-              },
-              { title: "Descripción", dataIndex: "descripcion", width: 250 },
-              {
-                title: "Frecuencia",
-                dataIndex: "frecuencia",
-                width: 100,
-                sorter: (a, b) => {
-                  const order: Record<string, number> = { Alta: 1, Media: 2, Baja: 3 };
-                  return (order[a.frecuencia] || 99) - (order[b.frecuencia] || 99);
+            style={cardStyle}
+            bodyStyle={{ padding: 0 }}
+          >
+            <ProTable<{ key: string; metrica: string; valor: string | number }>
+              rowKey="key"
+              dataSource={tableData}
+              search={false}
+              options={false}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: "Métrica", dataIndex: "metrica", width: "60%" },
+                { title: "Valor", dataIndex: "valor", width: "40%", align: "right" as const },
+              ]}
+              toolBarRender={false}
+            />
+          </ProCard>
+
+          {/* Prioridad tiendas */}
+          <ProCard
+            bordered
+            title="📌 Prioridad de inversión — Tiendas"
+            size="small"
+            style={cardStyle}
+            bodyStyle={{ padding: 0 }}
+          >
+            <ProTable<any>
+              rowKey="id"
+              loading={loadingStores}
+              dataSource={stores}
+              search={false}
+              options={false}
+              pagination={{ pageSize: 6 }}
+              size="small"
+              columns={[
+                {
+                  title: "#",
+                  render: (_: any, __: any, index: number) => index + 1,
+                  width: 60,
+                  align: "center" as const,
                 },
-                render: (_, record) => (
-                  <span
-                    style={{
-                      color:
-                        record.frecuencia === "Alta"
-                          ? "#ff4d4f"
-                          : record.frecuencia === "Media"
-                          ? "#faad14"
-                          : "#52c41a",
-                    }}
-                  >
-                    {record.frecuencia}
-                  </span>
-                ),
-              },
-              {
-                title: "Impacto",
-                dataIndex: "impacto",
-                width: 100,
-                sorter: (a, b) => {
-                  const order: Record<string, number> = { Alto: 1, Medio: 2, Bajo: 3 };
-                  return (order[a.impacto] || 99) - (order[b.impacto] || 99);
+                {
+                  title: "Tienda",
+                  dataIndex: "name",
+                  render: (_text: any, record: any) => (
+                    <div>
+                      <div style={{ fontWeight: 900 }}>{record.name}</div>
+                      <div style={{ fontSize: 12, opacity: 0.6 }}>ID: {record.id}</div>
+                    </div>
+                  ),
                 },
-                render: (_, record) => (
-                  <span
-                    style={{
-                      color:
-                        record.impacto === "Alto"
-                          ? "#ff4d4f"
-                          : record.impacto === "Medio"
-                          ? "#faad14"
-                          : "#52c41a",
-                    }}
-                  >
-                    {record.impacto}
-                  </span>
-                ),
-              },
-              {
-                title: "Tiendas afectadas",
-                dataIndex: "tiendas_afectadas",
-                width: 130,
-                align: "right" as const,
-                sorter: (a, b) => (a.tiendas_afectadas || 0) - (b.tiendas_afectadas || 0),
-              },
-              {
-                title: "Estado",
-                dataIndex: "estado",
-                width: 100,
-                sorter: (a, b) => a.estado.localeCompare(b.estado),
-                render: (_, record) => (
-                  <span
-                    style={{
-                      color:
-                        record.estado === "Resuelto" ? "#52c41a" : "#ff4d4f",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {record.estado}
-                  </span>
-                ),
-              },
-            ]}
-            toolBarRender={false}
-          />
+                {
+                  title: "Urgencia",
+                  dataIndex: "priorityScore",
+                  width: 190,
+                  render: (_: any, record: any) => (
+                    <div style={{ width: 160 }}>
+                      <Progress
+                        percent={record.priorityScore}
+                        showInfo={false}
+                        strokeColor={scoreColor(record.priorityScore)}
+                        trailColor="rgba(255,255,255,0.10)"
+                      />
+                      <div style={{ fontSize: 12, textAlign: "right", marginTop: 4, opacity: 0.75 }}>
+                        {record.priorityScore}/100
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  title: "ROI actual",
+                  dataIndex: "roi",
+                  width: 110,
+                  render: (_: any, record: any) => (
+                    <span style={{ fontWeight: 800, opacity: 0.9 }}>{record.roi}%</span>
+                  ),
+                },
+                {
+                  title: "Riesgo",
+                  dataIndex: "riskLevel",
+                  width: 110,
+                  render: (_: any, r: any) => (
+                    <span
+                      style={{
+                        fontWeight: 900,
+                        color:
+                          r.riskLevel === "Alto"
+                            ? "#ff4d4f"
+                            : r.riskLevel === "Medio"
+                            ? "#faad14"
+                            : "#52c41a",
+                      }}
+                    >
+                      {r.riskLevel}
+                    </span>
+                  ),
+                },
+                {
+                  title: "Inversión necesaria",
+                  dataIndex: "investmentNeeded",
+                  align: "right" as const,
+                  width: 160,
+                  render: (_: any, r: any) => (
+                    <span style={{ fontWeight: 900 }}>{r.investmentNeeded}</span>
+                  ),
+                },
+                {
+                  title: "",
+                  valueType: "option",
+                  width: 120,
+                  render: (_: any, record: any) => [
+                    <Button
+                      key="view"
+                      type="primary"
+                      size="small"
+                      onClick={() => navigate(`/store/${record.id}`)}
+                      style={{ borderRadius: 10, fontWeight: 900 }}
+                    >
+                      Analizar
+                    </Button>,
+                  ],
+                },
+              ]}
+              toolBarRender={false}
+            />
+          </ProCard>
+
+          {/* Riesgos */}
+          <ProCard
+            bordered
+            title="⚠️ Análisis de Riesgos"
+            size="small"
+            style={cardStyle}
+            bodyStyle={{ padding: 12 }}
+          >
+            <ProCard split="vertical" ghost style={{ gap: 12, alignItems: "stretch" }}>
+              <ProCard
+                colSpan="50%"
+                bordered
+                title="Distribución por tipo"
+                size="small"
+                style={cardStyle}
+                bodyStyle={{ padding: 14, display: "grid", placeItems: "center" }}
+              >
+                <Pie {...riskTypeConfig} />
+              </ProCard>
+
+              <ProCard colSpan="50%" ghost style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <ProCard
+                  bordered
+                  title="Riesgos más frecuentes"
+                  size="small"
+                  style={cardStyle}
+                  bodyStyle={{ padding: 0 }}
+                >
+                  <ProTable<(typeof mostFrequentRisks)[0]>
+                    rowKey="id"
+                    dataSource={mostFrequentRisks}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    size="small"
+                    columns={[
+                      { title: "Tipo", dataIndex: "tipo", width: "30%" },
+                      { title: "Descripción", dataIndex: "descripcion", width: "55%" },
+                      {
+                        title: "Frecuencia",
+                        dataIndex: "frecuencia",
+                        width: "15%",
+                        render: (_: any, r: any) => (
+                          <span style={{ fontWeight: 900, color: r.frecuencia === "Alta" ? "#ff4d4f" : r.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
+                            {r.frecuencia}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    toolBarRender={false}
+                  />
+                </ProCard>
+
+                <ProCard
+                  bordered
+                  title="Riesgos más expuestos"
+                  size="small"
+                  style={cardStyle}
+                  bodyStyle={{ padding: 0 }}
+                >
+                  <ProTable<(typeof mostExposedRisks)[0]>
+                    rowKey="id"
+                    dataSource={mostExposedRisks}
+                    search={false}
+                    options={false}
+                    pagination={false}
+                    size="small"
+                    columns={[
+                      { title: "Tipo", dataIndex: "tipo", width: "28%" },
+                      { title: "Descripción", dataIndex: "descripcion", width: "52%" },
+                      {
+                        title: "Tiendas",
+                        dataIndex: "tiendas_afectadas",
+                        width: "10%",
+                        align: "right" as const,
+                      },
+                      {
+                        title: "Impacto",
+                        dataIndex: "impacto",
+                        width: "10%",
+                        render: (_: any, r: any) => (
+                          <span style={{ fontWeight: 900, color: r.impacto === "Alto" ? "#ff4d4f" : r.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
+                            {r.impacto}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    toolBarRender={false}
+                  />
+                </ProCard>
+              </ProCard>
+            </ProCard>
+          </ProCard>
+
+          {/* Tabla completa riesgos */}
+          <ProCard
+            bordered
+            title="📋 Detalle completo de riesgos"
+            size="small"
+            style={cardStyle}
+            bodyStyle={{ padding: 0 }}
+          >
+            <ProTable<(typeof countryRisks)[0]>
+              rowKey="id"
+              dataSource={countryRisks}
+              search={false}
+              options={false}
+              pagination={{ pageSize: 10 }}
+              size="small"
+              scroll={{ x: true }}
+              columns={[
+                {
+                  title: "Tipo",
+                  dataIndex: "tipo",
+                  width: 140,
+                  sorter: (a, b) => a.tipo.localeCompare(b.tipo),
+                },
+                { title: "Descripción", dataIndex: "descripcion", width: 320 },
+                {
+                  title: "Frecuencia",
+                  dataIndex: "frecuencia",
+                  width: 120,
+                  sorter: (a, b) => ({ Alta: 1, Media: 2, Baja: 3 }[a.frecuencia] - ({ Alta: 1, Media: 2, Baja: 3 }[b.frecuencia])),
+                  render: (_: any, r: any) => (
+                    <span style={{ fontWeight: 900, color: r.frecuencia === "Alta" ? "#ff4d4f" : r.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
+                      {r.frecuencia}
+                    </span>
+                  ),
+                },
+                {
+                  title: "Impacto",
+                  dataIndex: "impacto",
+                  width: 120,
+                  sorter: (a, b) => ({ Alto: 1, Medio: 2, Bajo: 3 }[a.impacto] - ({ Alto: 1, Medio: 2, Bajo: 3 }[b.impacto])),
+                  render: (_: any, r: any) => (
+                    <span style={{ fontWeight: 900, color: r.impacto === "Alto" ? "#ff4d4f" : r.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
+                      {r.impacto}
+                    </span>
+                  ),
+                },
+                {
+                  title: "Tiendas afectadas",
+                  dataIndex: "tiendas_afectadas",
+                  width: 160,
+                  align: "right" as const,
+                  sorter: (a, b) => (a.tiendas_afectadas || 0) - (b.tiendas_afectadas || 0),
+                },
+                {
+                  title: "Estado",
+                  dataIndex: "estado",
+                  width: 120,
+                  sorter: (a, b) => a.estado.localeCompare(b.estado),
+                  render: (_: any, r: any) => (
+                    <span style={{ fontWeight: 900, color: r.estado === "Resuelto" ? "#00ff88" : "#ff4d4f" }}>
+                      {r.estado}
+                    </span>
+                  ),
+                },
+              ]}
+              toolBarRender={false}
+            />
+          </ProCard>
         </ProCard>
-      </ProCard>
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 }
