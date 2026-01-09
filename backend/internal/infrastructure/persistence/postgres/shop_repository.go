@@ -23,14 +23,14 @@ func NewShopRepository(db *sql.DB) *ShopRepository {
 // Create inserta una nueva tienda
 func (r *ShopRepository) Create(ctx context.Context, shop *models.Shop) error {
 	query := `
-		INSERT INTO "Shop" (location, coordinate_x, coordinate_y, surface, "carbonFootprint", cluster_id, "totalRisk", "taxonomyCoverage")
+		INSERT INTO "Shop" (location, utm_north, utm_east, surface, "carbonFootprint", cluster_id, "totalRisk", "taxonomyCoverage")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id
 	`
 	err := r.db.QueryRowContext(ctx, query,
 		shop.Location,
-		shop.CoordinateX,
-		shop.CoordinateY,
+		shop.UtmNorth,
+		shop.UtmEast,
 		shop.Surface,
 		shop.CarbonFootprint,
 		shop.ClusterID,
@@ -47,7 +47,7 @@ func (r *ShopRepository) Create(ctx context.Context, shop *models.Shop) error {
 // GetByID obtiene una tienda por su ID
 func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, error) {
 	query := `
-		SELECT id, location, coordinate_x, coordinate_y, "totalRisk", "taxonomyCoverage", surface, "carbonFootprint", cluster_id
+		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id
 		FROM "Shop"
 		WHERE id = $1
 	`
@@ -55,8 +55,8 @@ func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, e
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&shop.ID,
 		&shop.Location,
-		&shop.CoordinateX,
-		&shop.CoordinateY,
+		&shop.UtmNorth,
+		&shop.UtmEast,
 		&shop.TotalRisk,
 		&shop.TaxonomyCoverage,
 		&shop.Surface,
@@ -76,14 +76,14 @@ func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, e
 func (r *ShopRepository) Update(ctx context.Context, shop *models.Shop) error {
 	query := `
 		UPDATE "Shop"
-		SET location = $1, coordinate_x = $2, coordinate_y = $3, surface = $4, 
+		SET location = $1, utm_north = $2, utm_east = $3, surface = $4, 
 		    "carbonFootprint" = $5, cluster_id = $6, "totalRisk" = $7, "taxonomyCoverage" = $8
 		WHERE id = $9
 	`
 	result, err := r.db.ExecContext(ctx, query,
 		shop.Location,
-		shop.CoordinateX,
-		shop.CoordinateY,
+		shop.UtmNorth,
+		shop.UtmEast,
 		shop.Surface,
 		shop.CarbonFootprint,
 		shop.ClusterID,
@@ -125,7 +125,7 @@ func (r *ShopRepository) Delete(ctx context.Context, id int64) error {
 // List obtiene una lista paginada de tiendas con filtros opcionales
 func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequest) ([]models.Shop, int64, error) {
 	// Construir query dinámicamente
-	baseQuery := `SELECT id, location, coordinate_x, coordinate_y, "totalRisk", "taxonomyCoverage", surface, "carbonFootprint", cluster_id FROM "Shop"`
+	baseQuery := `SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id FROM "Shop"`
 	countQuery := `SELECT COUNT(*) FROM "Shop"`
 
 	var conditions []string
@@ -223,8 +223,8 @@ func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequ
 		err := rows.Scan(
 			&shop.ID,
 			&shop.Location,
-			&shop.CoordinateX,
-			&shop.CoordinateY,
+			&shop.UtmNorth,
+			&shop.UtmEast,
 			&shop.TotalRisk,
 			&shop.TaxonomyCoverage,
 			&shop.Surface,
@@ -243,7 +243,7 @@ func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequ
 // GetByClusterID obtiene todas las tiendas de un cluster
 func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([]models.Shop, error) {
 	query := `
-		SELECT id, location, coordinate_x, coordinate_y, "totalRisk", "taxonomyCoverage", surface, "carbonFootprint", cluster_id
+		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id
 		FROM "Shop"
 		WHERE cluster_id = $1
 		ORDER BY id
@@ -260,8 +260,8 @@ func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([
 		err := rows.Scan(
 			&shop.ID,
 			&shop.Location,
-			&shop.CoordinateX,
-			&shop.CoordinateY,
+			&shop.UtmNorth,
+			&shop.UtmEast,
 			&shop.TotalRisk,
 			&shop.TaxonomyCoverage,
 			&shop.Surface,
@@ -280,8 +280,8 @@ func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([
 // GetWithDetails obtiene una tienda con información extendida
 func (r *ShopRepository) GetWithDetails(ctx context.Context, id int64) (*models.ShopWithDetails, error) {
 	query := `
-		SELECT s.id, s.location, s.coordinate_x, s.coordinate_y, s."totalRisk", 
-		       s."taxonomyCoverage", s.surface, s."carbonFootprint", s.cluster_id,
+		SELECT s.id, s.location, s.utm_north, s.utm_east, COALESCE(s."totalRisk", 0), 
+		       COALESCE(s."taxonomyCoverage", 0), COALESCE(s.surface, 0), COALESCE(s."carbonFootprint", 0), s.cluster_id,
 		       c.name as cluster_name
 		FROM "Shop" s
 		JOIN "Cluster" c ON s.cluster_id = c.id
@@ -291,8 +291,8 @@ func (r *ShopRepository) GetWithDetails(ctx context.Context, id int64) (*models.
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&shop.ID,
 		&shop.Location,
-		&shop.CoordinateX,
-		&shop.CoordinateY,
+		&shop.UtmNorth,
+		&shop.UtmEast,
 		&shop.TotalRisk,
 		&shop.TaxonomyCoverage,
 		&shop.Surface,

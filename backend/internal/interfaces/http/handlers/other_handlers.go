@@ -188,7 +188,7 @@ func (h *MeasureHandler) GetByName(c *gin.Context) {
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
-// @Router /shops/{shopId}/applicable-measures [get]
+// @Router /shops/{id}/applicable-measures [get]
 // @Security BearerAuth
 func (h *MeasureHandler) GetApplicableForShop(c *gin.Context) {
 	shopID, err := strconv.ParseInt(c.Param("id"), 10, 64)

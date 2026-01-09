@@ -36,7 +36,8 @@ func NewConnection(cfg Config) (*sql.DB, error) {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		// Retornamos db aunque falle el ping para permitir el inicio del servidor
+		return db, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	log.Println("Database connection established successfully")

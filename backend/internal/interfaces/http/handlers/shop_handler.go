@@ -274,6 +274,35 @@ func (h *ShopHandler) GetRiskAssessment(c *gin.Context) {
 	respondWithSuccess(c, http.StatusOK, assessment, "")
 }
 
+// GetAppliedMeasures godoc
+// @Summary Obtiene medidas aplicadas a una tienda
+// @Description Retorna todas las medidas que ya han sido aplicadas a una tienda
+// @Tags shops
+// @Accept json
+// @Produce json
+// @Param id path int true "ID de la tienda"
+// @Success 200 {object} models.APIResponse[[]models.Measure]
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /shops/{id}/measures [get]
+// @Security BearerAuth
+func (h *ShopHandler) GetAppliedMeasures(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		respondWithError(c, models.ErrInvalidID)
+		return
+	}
+
+	measures, err := h.shopService.GetAppliedMeasures(c.Request.Context(), id)
+	if err != nil {
+		respondWithError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, measures, "")
+}
+
 // GetByCluster godoc
 // @Summary Obtiene tiendas por cluster
 // @Description Retorna todas las tiendas de un cluster específico

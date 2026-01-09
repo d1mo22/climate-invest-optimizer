@@ -28,8 +28,8 @@ const (
 type Shop struct {
 	ID               int64     `json:"id" db:"id"`
 	Location         string    `json:"location" db:"location"`
-	CoordinateX      float64   `json:"coordinate_x" db:"coordinate_x"`
-	CoordinateY      float64   `json:"coordinate_y" db:"coordinate_y"`
+	UtmNorth         float64   `json:"utm_north" db:"utm_north"`
+	UtmEast          float64   `json:"utm_east" db:"utm_east"`
 	TotalRisk        float64   `json:"total_risk" db:"totalRisk"`
 	TaxonomyCoverage float64   `json:"taxonomy_coverage" db:"taxonomyCoverage"`
 	Surface          float64   `json:"surface" db:"surface"`
@@ -41,10 +41,10 @@ type Shop struct {
 
 // Cluster representa una agrupación geográfica de tiendas
 type Cluster struct {
-	ID           int64   `json:"id" db:"id"`
-	Name         string  `json:"name" db:"name"`
-	CoordinatesX float64 `json:"coordinates_x" db:"coordinates_x"`
-	CoordinatesY float64 `json:"coordinates_y" db:"coordinates_y"`
+	ID       int64   `json:"id" db:"id"`
+	Name     string  `json:"name" db:"name"`
+	UtmNorth float64 `json:"utm_north" db:"utm_north"`
+	UtmEast  float64 `json:"utm_east" db:"utm_east"`
 }
 
 // Risk representa un riesgo climático

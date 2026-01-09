@@ -257,8 +257,8 @@ func TestShopService_Create_Success(t *testing.T) {
 
 	req := &models.CreateShopRequest{
 		Location:        "Valencia Centro",
-		CoordinateX:     39.47,
-		CoordinateY:     -0.37,
+		UtmNorth:        39.47,
+		UtmEast:         -0.37,
 		Surface:         600,
 		CarbonFootprint: 120.5,
 		ClusterID:       1,
@@ -289,11 +289,11 @@ func TestShopService_Create_InvalidCluster(t *testing.T) {
 	ctx := context.Background()
 
 	req := &models.CreateShopRequest{
-		Location:    "Test",
-		CoordinateX: 40.0,
-		CoordinateY: -3.0,
-		Surface:     100,
-		ClusterID:   999, // Cluster inexistente
+		Location:  "Test",
+		UtmNorth:  40.0,
+		UtmEast:   -3.0,
+		Surface:   100,
+		ClusterID: 999, // Cluster inexistente
 	}
 
 	_, err := service.Create(ctx, req)
@@ -572,11 +572,11 @@ func BenchmarkShopService_GetByID(b *testing.B) {
 func BenchmarkShopService_Create(b *testing.B) {
 	ctx := context.Background()
 	req := &models.CreateShopRequest{
-		Location:    "Test Location",
-		CoordinateX: 40.0,
-		CoordinateY: -3.0,
-		Surface:     500,
-		ClusterID:   1,
+		Location:  "Test Location",
+		UtmNorth:  40.0,
+		UtmEast:   -3.0,
+		Surface:   500,
+		ClusterID: 1,
 	}
 
 	b.ResetTimer()

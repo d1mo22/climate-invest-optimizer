@@ -183,21 +183,21 @@ func NewClusterRepository(db *sql.DB) *ClusterRepository {
 // Create inserta un nuevo cluster
 func (r *ClusterRepository) Create(ctx context.Context, cluster *models.Cluster) error {
 	query := `
-		INSERT INTO "Cluster" (name, coordinates_x, coordinates_y)
+		INSERT INTO "Cluster" (name, utm_north, utm_east)
 		VALUES ($1, $2, $3)
 		RETURNING id
 	`
 	return r.db.QueryRowContext(ctx, query,
-		cluster.Name, cluster.CoordinatesX, cluster.CoordinatesY,
+		cluster.Name, cluster.UtmNorth, cluster.UtmEast,
 	).Scan(&cluster.ID)
 }
 
 // GetByID obtiene un cluster por ID
 func (r *ClusterRepository) GetByID(ctx context.Context, id int64) (*models.Cluster, error) {
-	query := `SELECT id, name, coordinates_x, coordinates_y FROM "Cluster" WHERE id = $1`
+	query := `SELECT id, name, utm_north, utm_east FROM "Cluster" WHERE id = $1`
 	cluster := &models.Cluster{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&cluster.ID, &cluster.Name, &cluster.CoordinatesX, &cluster.CoordinatesY,
+		&cluster.ID, &cluster.Name, &cluster.UtmNorth, &cluster.UtmEast,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -210,9 +210,9 @@ func (r *ClusterRepository) GetByID(ctx context.Context, id int64) (*models.Clus
 
 // Update actualiza un cluster
 func (r *ClusterRepository) Update(ctx context.Context, cluster *models.Cluster) error {
-	query := `UPDATE "Cluster" SET name = $1, coordinates_x = $2, coordinates_y = $3 WHERE id = $4`
+	query := `UPDATE "Cluster" SET name = $1, utm_north = $2, utm_east = $3 WHERE id = $4`
 	result, err := r.db.ExecContext(ctx, query,
-		cluster.Name, cluster.CoordinatesX, cluster.CoordinatesY, cluster.ID,
+		cluster.Name, cluster.UtmNorth, cluster.UtmEast, cluster.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update cluster: %w", err)
@@ -239,7 +239,7 @@ func (r *ClusterRepository) Delete(ctx context.Context, id int64) error {
 
 // List obtiene todos los clusters
 func (r *ClusterRepository) List(ctx context.Context) ([]models.Cluster, error) {
-	query := `SELECT id, name, coordinates_x, coordinates_y FROM "Cluster" ORDER BY name`
+	query := `SELECT id, name, utm_north, utm_east FROM "Cluster" ORDER BY name`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)
@@ -249,7 +249,7 @@ func (r *ClusterRepository) List(ctx context.Context) ([]models.Cluster, error) 
 	var clusters []models.Cluster
 	for rows.Next() {
 		var c models.Cluster
-		if err := rows.Scan(&c.ID, &c.Name, &c.CoordinatesX, &c.CoordinatesY); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.UtmNorth, &c.UtmEast); err != nil {
 			return nil, fmt.Errorf("failed to scan cluster: %w", err)
 		}
 		clusters = append(clusters, c)

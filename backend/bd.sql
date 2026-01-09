@@ -4,8 +4,8 @@
 CREATE TABLE public.Cluster (
   id smallint GENERATED ALWAYS AS IDENTITY NOT NULL,
   name text NOT NULL,
-  coordinates_x real NOT NULL,
-  coordinates_y real NOT NULL,
+  utm_north real NOT NULL,
+  utm_east real NOT NULL,
   CONSTRAINT Cluster_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.Cluster_risk (
@@ -43,8 +43,8 @@ CREATE TABLE public.Risk_measures (
 CREATE TABLE public.Shop (
   id smallint GENERATED ALWAYS AS IDENTITY NOT NULL,
   location text NOT NULL,
-  coordinate_x real NOT NULL,
-  coordinate_y real NOT NULL,
+  utm_north real NOT NULL,
+  utm_east real NOT NULL,
   totalRisk real,
   taxonomyCoverage real,
   surface real,

@@ -119,7 +119,10 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | POST | `/api/v1/shops` | Crear tienda |
 | PATCH | `/api/v1/shops/:id` | Actualizar tienda |
 | DELETE | `/api/v1/shops/:id` | Eliminar tienda |
+| GET | `/api/v1/shops/:id/measures` | Obtener medidas aplicadas |
 | POST | `/api/v1/shops/:id/measures` | Aplicar medidas |
+| DELETE | `/api/v1/shops/:id/measures/:name` | Eliminar medida aplicada |
+| GET | `/api/v1/shops/:id/applicable-measures` | Medidas disponibles para aplicar |
 | GET | `/api/v1/shops/:id/risk-assessment` | Evaluación de riesgos |
 
 ### Clusters

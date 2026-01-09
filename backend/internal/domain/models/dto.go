@@ -8,8 +8,8 @@ package models
 // CreateShopRequest representa la solicitud para crear una tienda
 type CreateShopRequest struct {
 	Location        string  `json:"location" binding:"required,min=3,max=255"`
-	CoordinateX     float64 `json:"coordinate_x" binding:"required"`
-	CoordinateY     float64 `json:"coordinate_y" binding:"required"`
+	UtmNorth        float64 `json:"utm_north" binding:"required"`
+	UtmEast         float64 `json:"utm_east" binding:"required"`
 	Surface         float64 `json:"surface" binding:"required,gt=0"`
 	CarbonFootprint float64 `json:"carbon_footprint" binding:"gte=0"`
 	ClusterID       int64   `json:"cluster_id" binding:"required,gt=0"`
@@ -18,8 +18,8 @@ type CreateShopRequest struct {
 // UpdateShopRequest representa la solicitud para actualizar una tienda
 type UpdateShopRequest struct {
 	Location        *string  `json:"location,omitempty" binding:"omitempty,min=3,max=255"`
-	CoordinateX     *float64 `json:"coordinate_x,omitempty"`
-	CoordinateY     *float64 `json:"coordinate_y,omitempty"`
+	UtmNorth        *float64 `json:"utm_north,omitempty"`
+	UtmEast         *float64 `json:"utm_east,omitempty"`
 	Surface         *float64 `json:"surface,omitempty" binding:"omitempty,gt=0"`
 	CarbonFootprint *float64 `json:"carbon_footprint,omitempty" binding:"omitempty,gte=0"`
 	ClusterID       *int64   `json:"cluster_id,omitempty" binding:"omitempty,gt=0"`
@@ -101,8 +101,8 @@ type PaginationMeta struct {
 type ShopResponse struct {
 	ID               int64   `json:"id"`
 	Location         string  `json:"location"`
-	CoordinateX      float64 `json:"coordinate_x"`
-	CoordinateY      float64 `json:"coordinate_y"`
+	UtmNorth         float64 `json:"utm_north"`
+	UtmEast          float64 `json:"utm_east"`
 	TotalRisk        float64 `json:"total_risk"`
 	TaxonomyCoverage float64 `json:"taxonomy_coverage"`
 	Surface          float64 `json:"surface"`

@@ -118,11 +118,11 @@ echo -e "${BLUE}Creando tiendas de prueba...${NC}"
 
 curl -s -X POST "$BASE_URL/shops" \
     -H "Content-Type: application/json" \
-    -d '{"name": "Barcelona Test", "address": "Diagonal 500", "cluster_id": 4, "location": "Barcelona Diagonal", "coordinate_x": 41.39, "coordinate_y": 2.15, "surface": 800}' > /dev/null 2>&1
+    -d '{"name": "Barcelona Test", "address": "Diagonal 500", "cluster_id": 4, "location": "Barcelona Diagonal", "utm_north": 41.39, "utm_east": 2.15, "surface": 800}' > /dev/null 2>&1
 
 curl -s -X POST "$BASE_URL/shops" \
     -H "Content-Type: application/json" \
-    -d '{"name": "Valencia Test", "address": "Puerto 1", "cluster_id": 7, "location": "Valencia Puerto", "coordinate_x": 39.45, "coordinate_y": -0.32, "surface": 450}' > /dev/null 2>&1
+    -d '{"name": "Valencia Test", "address": "Puerto 1", "cluster_id": 7, "location": "Valencia Puerto", "utm_north": 39.45, "utm_east": -0.32, "surface": 450}' > /dev/null 2>&1
 
 echo -e "${GREEN}✓ Tiendas creadas${NC}"
 echo ""

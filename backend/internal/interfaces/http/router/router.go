@@ -70,6 +70,7 @@ func Setup(r *gin.Engine, cfg *Config) {
 				shops.DELETE("/:id", cfg.ShopHandler.Delete)
 
 				// Medidas de una tienda
+				shops.GET("/:id/measures", cfg.ShopHandler.GetAppliedMeasures)
 				shops.POST("/:id/measures", cfg.ShopHandler.ApplyMeasures)
 				shops.DELETE("/:id/measures/:measureName", cfg.ShopHandler.RemoveMeasure)
 
@@ -77,7 +78,7 @@ func Setup(r *gin.Engine, cfg *Config) {
 				shops.GET("/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)
 
 				// Medidas aplicables
-				shops.GET("/:shopId/applicable-measures", cfg.MeasureHandler.GetApplicableForShop)
+				shops.GET("/:id/applicable-measures", cfg.MeasureHandler.GetApplicableForShop)
 			}
 
 			// ==================== CLUSTERS ====================
@@ -184,6 +185,7 @@ func SetupSimple(r *gin.Engine, cfg *Config) {
 		v1.POST("/shops", cfg.ShopHandler.Create)
 		v1.PATCH("/shops/:id", cfg.ShopHandler.Update)
 		v1.DELETE("/shops/:id", cfg.ShopHandler.Delete)
+		v1.GET("/shops/:id/measures", cfg.ShopHandler.GetAppliedMeasures)
 		v1.POST("/shops/:id/measures", cfg.ShopHandler.ApplyMeasures)
 		v1.DELETE("/shops/:id/measures/:measureName", cfg.ShopHandler.RemoveMeasure)
 		v1.GET("/shops/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)

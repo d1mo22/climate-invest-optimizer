@@ -775,11 +775,11 @@ components:
         location:
           type: string
           example: Barcelona, Spain
-        coordinate_x:
+        utm_north:
           type: number
           format: float
           example: 41.3851
-        coordinate_y:
+        utm_east:
           type: number
           format: float
           example: 2.1734
@@ -825,8 +825,8 @@ components:
       type: object
       required:
         - location
-        - coordinate_x
-        - coordinate_y
+        - utm_north
+        - utm_east
         - surface
         - cluster_id
       properties:
@@ -835,11 +835,11 @@ components:
           minLength: 3
           maxLength: 255
           example: Madrid, Spain
-        coordinate_x:
+        utm_north:
           type: number
           format: float
           example: 40.4168
-        coordinate_y:
+        utm_east:
           type: number
           format: float
           example: -3.7038
@@ -865,10 +865,10 @@ components:
           type: string
           minLength: 3
           maxLength: 255
-        coordinate_x:
+        utm_north:
           type: number
           format: float
-        coordinate_y:
+        utm_east:
           type: number
           format: float
         surface:
@@ -926,11 +926,11 @@ components:
         name:
           type: string
           example: Mediterranean Coast
-        coordinates_x:
+        utm_north:
           type: number
           format: float
           example: 41.0
-        coordinates_y:
+        utm_east:
           type: number
           format: float
           example: 2.0

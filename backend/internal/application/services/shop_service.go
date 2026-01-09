@@ -19,6 +19,7 @@ type ShopService interface {
 	ApplyMeasures(ctx context.Context, shopID int64, measureNames []string) error
 	RemoveMeasure(ctx context.Context, shopID int64, measureName string) error
 	GetRiskAssessment(ctx context.Context, shopID int64) (*models.RiskAssessmentResponse, error)
+	GetAppliedMeasures(ctx context.Context, shopID int64) ([]models.Measure, error)
 }
 
 // shopService implementa ShopService
@@ -58,8 +59,8 @@ func (s *shopService) Create(ctx context.Context, req *models.CreateShopRequest)
 	// Crear la tienda
 	shop := &models.Shop{
 		Location:        req.Location,
-		CoordinateX:     req.CoordinateX,
-		CoordinateY:     req.CoordinateY,
+		UtmNorth:        req.UtmNorth,
+		UtmEast:         req.UtmEast,
 		Surface:         req.Surface,
 		CarbonFootprint: req.CarbonFootprint,
 		ClusterID:       req.ClusterID,
@@ -114,11 +115,11 @@ func (s *shopService) Update(ctx context.Context, id int64, req *models.UpdateSh
 	if req.Location != nil {
 		shop.Location = *req.Location
 	}
-	if req.CoordinateX != nil {
-		shop.CoordinateX = *req.CoordinateX
+	if req.UtmNorth != nil {
+		shop.UtmNorth = *req.UtmNorth
 	}
-	if req.CoordinateY != nil {
-		shop.CoordinateY = *req.CoordinateY
+	if req.UtmEast != nil {
+		shop.UtmEast = *req.UtmEast
 	}
 	if req.Surface != nil {
 		shop.Surface = *req.Surface
@@ -176,8 +177,8 @@ func (s *shopService) List(ctx context.Context, filter *models.ShopFilterRequest
 		items[i] = models.ShopResponse{
 			ID:               shop.ID,
 			Location:         shop.Location,
-			CoordinateX:      shop.CoordinateX,
-			CoordinateY:      shop.CoordinateY,
+			UtmNorth:         shop.UtmNorth,
+			UtmEast:          shop.UtmEast,
 			TotalRisk:        shop.TotalRisk,
 			TaxonomyCoverage: shop.TaxonomyCoverage,
 			Surface:          shop.Surface,
@@ -232,6 +233,25 @@ func (s *shopService) GetByCluster(ctx context.Context, clusterID int64) ([]mode
 	}
 
 	return shops, nil
+}
+
+// GetAppliedMeasures obtiene las medidas ya aplicadas a una tienda
+func (s *shopService) GetAppliedMeasures(ctx context.Context, shopID int64) ([]models.Measure, error) {
+	// Verificar que la tienda existe
+	shop, err := s.shopRepo.GetByID(ctx, shopID)
+	if err != nil {
+		return nil, models.ErrDatabase(err)
+	}
+	if shop == nil {
+		return nil, models.ErrShopNotFound
+	}
+
+	measures, err := s.shopRepo.GetAppliedMeasures(ctx, shopID)
+	if err != nil {
+		return nil, models.ErrDatabase(err)
+	}
+
+	return measures, nil
 }
 
 // ApplyMeasures aplica medidas a una tienda
