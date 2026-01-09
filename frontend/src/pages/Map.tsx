@@ -1,162 +1,32 @@
 // src/pages/Map.tsx
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useNavigate } from "react-router-dom";
 import "../index.css";
 
-type Tip = { name: string; x: number; y: number } | null;
-
-const MARKER_RADIUS_PX = 20;
-
-const PIN_VIEWBOX = "0 0 830 1280";
-
-const PIN_GROUP_TRANSFORM = "translate(0,1280) scale(0.1,-0.1)";
-
-const PIN_PATH_D =
-  "M3855 12789 c-555 -44 -1043 -176 -1530 -414 -1457 -712 -2370 -2223 " +
-  "-2322 -3840 19 -605 152 -1155 406 -1680 109 -225 183 -353 331 -575 65 -96 " +
-  "856 -1369 1760 -2827 903 -1459 1646 -2653 1650 -2653 4 0 747 1194 1650 2652 " +
-  "904 1459 1695 2732 1760 2828 148 222 222 350 331 575 421 869 520 1869 279 " +
-  "2821 -244 958 -822 1795 -1640 2371 -696 491 -1551 759 -2404 752 -94 -1 -216 " +
-  "-5 -271 -10z m635 -1764 c440 -80 813 -271 1120 -575 769 -761 825 -1980 130 " +
-  "-2812 -335 -402 -817 -663 -1344 -728 -114 -14 -378 -14 -492 0 -853 105 " +
-  "-1550 715 -1764 1544 -141 545 -52 1136 243 1613 330 531 862 876 1497 968 " +
-  "130 19 481 13 610 -10z";
-
-function getMarkerColor(name: string) {
-  if (name === "Campus mango y almacén lliçá") {
-    return "transparent";
-  }
-  return "#4b6bfdff";
-}
-
-type CsvRow = {
-  id: string;
-  name: string;
-  country: string;
-  utm_north: string;
-  utm_east: string;
-};
-
-// ======================
-// 1) AFINIDAD N PUNTOS
-// ======================
-const UTM_ANCHORS: [number, number][] = [
-  [-411926.644, 4926301.901], // Madrid
-  [295006.669, 4804084.443], // Baleares
-  [-14221.956, 6711542.476], // Londres
-  [1492237.774, 6894699.801], // Berlín
-  [2776129.989, 8437661.782], // Helsinki
-  [1391092.885, 5146430.457], // Roma
-  [2220267.244, 6457488.29], // Varsovia
-];
-
-const SVG_ANCHORS: [number, number][] = [
-  [354.050537109375, 564.7141723632812],
-  [440.8133239746094, 573.8910522460938],
-  [399.1004638671875, 392.0228576660156],
-  [559.2778930664062, 371.16644287109375],
-  [686.9193115234375, 257.7073974609375],
-  [565.9519653320312, 540.520751953125],
-  [645.2064208984375, 403.7024841308594],
-];
-
-function affineFromN(src: [number, number][], dst: [number, number][]) {
-  if (src.length !== dst.length) {
-    throw new Error("src y dst deben tener la misma longitud");
-  }
-  const n = src.length;
-  if (n < 3) {
-    throw new Error("Se necesitan al menos 3 puntos para una afinidad");
-  }
-
-  const AtA = [
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-  ];
-  const AtbX = [0, 0, 0];
-  const AtbY = [0, 0, 0];
-
-  for (let i = 0; i < n; i++) {
-    const [E, N] = src[i];
-    const [x, y] = dst[i];
-    const row = [E, N, 1];
-
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 3; c++) {
-        AtA[r][c] += row[r] * row[c];
-      }
-    }
-    for (let r = 0; r < 3; r++) {
-      AtbX[r] += row[r] * x;
-      AtbY[r] += row[r] * y;
-    }
-  }
-
-  const det = (m: number[][]) =>
-    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-
-  const solve3 = (A: number[][], b: number[]) => {
-    const dA = det(A);
-    if (Math.abs(dA) < 1e-9) {
-      throw new Error(
-        "Sistema casi singular; puntos de ancla mal condicionados"
-      );
-    }
-    const repl = (col: number, vec: number[]) =>
-      A.map((row, i) => row.map((v, j) => (j === col ? vec[i] : v)));
-
-    const dx = det(repl(0, b)) / dA;
-    const dy = det(repl(1, b)) / dA;
-    const dz = det(repl(2, b)) / dA;
-    return [dx, dy, dz];
-  };
-
-  const [a11, a12, a13] = solve3(AtA, AtbX);
-  const [a21, a22, a23] = solve3(AtA, AtbY);
-
-  return (E: number, N: number) => ({
-    x: a11 * E + a12 * N + a13,
-    y: a21 * E + a22 * N + a23,
-  });
-}
-
-// ======================
-// 2) CSV loader sencillo
-// ======================
-async function fetchCSV(url: string): Promise<CsvRow[]> {
-  const txt = await fetch(url).then((r) => r.text());
-  const [header, ...lines] = txt.trim().split(/\r?\n/);
-  const cols = header.split(",").map((s) => s.trim());
-  return lines.map((line) => {
-    const cells = line.split(",").map((s) => s.trim());
-    const row: any = {};
-    cols.forEach((c, i) => (row[c] = cells[i]));
-    return row as CsvRow;
-  });
-}
+// Utilidades consolidadas
+import { slugify } from "../utils/slugify";
+import { affineFromN, UTM_ANCHORS, SVG_ANCHORS } from "../utils/geo";
+import {
+  MARKER_RADIUS_PX,
+  PIN_VIEWBOX,
+  PIN_GROUP_TRANSFORM,
+  PIN_PATH_D,
+  getMarkerColor,
+} from "../utils/mapIcons";
+import { fetchClusters } from "../services/csvService";
+import type { MapTooltip } from "../types";
 
 export default function Map() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [tip, setTip] = useState<Tip>(null);
+  const [tip, setTip] = useState<MapTooltip>(null);
 
-  // 🔵 NUEVO: estado del toggle y radio (en px)
+  // Estado del toggle para mostrar radios de clusters
   const [showRadius, setShowRadius] = useState(false);
 
   // Referencia a todos los círculos de radio creados
   const radiusCirclesRef = useRef<SVGCircleElement[]>([]);
-
-  const slugify = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -220,9 +90,7 @@ export default function Map() {
 
     // ========== 4) CARGAR CSV (UTM) Y PINTAR ==========
     (async () => {
-      const rows = await fetchCSV(
-        "../../public/data/Cluster_rows_utm_simple.csv"
-      );
+      const rows = await fetchClusters();
 
       const parsed = rows
         .map((r) => ({

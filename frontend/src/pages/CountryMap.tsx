@@ -1,5 +1,5 @@
 // src/pages/CountryMap.tsx
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -789,7 +789,7 @@ export default function CountryMap() {
       .replace(/^./, (c) => c.toUpperCase());
 
   // ===== LISTA ORDENADA =====
-  const sortedStores = React.useMemo(() => {
+  const sortedStores = useMemo(() => {
     const arr = [...storesList];
 
     if (sortBy === "inversion_desc") {

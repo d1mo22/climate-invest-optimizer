@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import type { ReactNode } from "react";
 import {
   PageContainer,
   ProCard,
-  StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
 import { useNavigate } from "react-router-dom";
@@ -465,8 +465,8 @@ export default function Dashboards() {
                   align: "right",
                   width: 150,
                   sorter: (a, b) => a.inversión - b.inversión,
-                  render: (v: number) => (
-                    <span style={{ fontWeight: 800 }}>{euroM(v)}</span>
+                  render: (_: ReactNode, record: Row) => (
+                    <span style={{ fontWeight: 800 }}>{euroM(record.inversión)}</span>
                   ),
                 },
                 {
@@ -481,9 +481,9 @@ export default function Dashboards() {
                   dataIndex: "riesgosResueltos",
                   align: "right",
                   width: 160,
-                  render: (v: number, r: Row) => (
+                  render: (_: ReactNode, r: Row) => (
                     <span style={{ opacity: 0.92 }}>
-                      {v.toLocaleString()}{" "}
+                      {r.riesgosResueltos.toLocaleString()}{" "}
                       <span style={{ opacity: 0.6, fontWeight: 700 }}>
                         ({r.pctRiesgosResueltos})
                       </span>
@@ -495,9 +495,9 @@ export default function Dashboards() {
                   dataIndex: "tiendasMejoradas",
                   align: "right",
                   width: 180,
-                  render: (v: number, r: Row) => (
+                  render: (_: ReactNode, r: Row) => (
                     <span style={{ opacity: 0.92 }}>
-                      {v.toLocaleString()}{" "}
+                      {r.tiendasMejoradas.toLocaleString()}{" "}
                       <span style={{ opacity: 0.6, fontWeight: 700 }}>
                         ({r.pctTiendasMejoradas})
                       </span>

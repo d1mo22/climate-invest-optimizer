@@ -1,5 +1,4 @@
 // src/layouts/AppLayout.tsx
-import React from "react";
 import { Layout, Menu } from "antd";
 import { Link, Outlet, useLocation } from "react-router-dom";
 

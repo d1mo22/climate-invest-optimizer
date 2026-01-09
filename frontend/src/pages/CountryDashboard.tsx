@@ -276,8 +276,6 @@ const subtleBtn: React.CSSProperties = {
   fontWeight: 800,
 };
 
-const pctColor = (v: number) => (v >= 0.8 ? "#00ff88" : v >= 0.5 ? "#faad14" : "#ff4d4f");
-
 const scoreColor = (score: number) =>
   score > 80 ? "#ff4d4f" : score > 50 ? "#faad14" : "#52c41a";
 
