@@ -395,7 +395,7 @@ export default function CountryDashboard() {
   const gaugeConfig = {
     percent: percentRiesgos,
     innerRadius: 0.9,
-    range: { color: ["#2b2b2b", "#00ff88"] },
+    range: { color: ["#00ff88","#2b2b2b"] },
     indicator: null,
     statistic: {
       content: {

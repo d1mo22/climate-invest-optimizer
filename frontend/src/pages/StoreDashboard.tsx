@@ -246,7 +246,7 @@ export default function StoreDashboard() {
     return {
       percent: p,
       innerRadius: 0.9,
-      range: { color: ["#2b2b2b", "#00ff88"] },
+      range: { color: ["#00ff88", "#2b2b2b"] },
       axis: { label: null, subTickLine: null, tickLine: null },
       indicator: null,
       statistic: {
