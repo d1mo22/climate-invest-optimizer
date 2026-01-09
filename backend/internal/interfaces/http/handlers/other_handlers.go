@@ -206,6 +206,35 @@ func (h *MeasureHandler) GetApplicableForShop(c *gin.Context) {
 	respondWithSuccess(c, http.StatusOK, measures, "")
 }
 
+// GetByRisk godoc
+// @Summary Obtiene medidas que solucionan un riesgo
+// @Description Retorna todas las medidas que pueden mitigar un riesgo climático específico
+// @Tags risks, measures
+// @Accept json
+// @Produce json
+// @Param id path int true "ID del riesgo"
+// @Success 200 {object} models.APIResponse[[]models.Measure]
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /risks/{id}/measures [get]
+// @Security BearerAuth
+func (h *MeasureHandler) GetByRisk(c *gin.Context) {
+	riskID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		respondWithError(c, models.ErrInvalidID)
+		return
+	}
+
+	measures, err := h.measureService.GetByRiskID(c.Request.Context(), riskID)
+	if err != nil {
+		respondWithError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, measures, "")
+}
+
 // RiskHandler maneja las peticiones de riesgos
 type RiskHandler struct {
 	riskService services.RiskService

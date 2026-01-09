@@ -49,17 +49,19 @@ type MeasureService interface {
 	List(ctx context.Context) ([]models.Measure, error)
 	GetByType(ctx context.Context, measureType models.MeasureType) ([]models.Measure, error)
 	GetApplicableForShop(ctx context.Context, shopID int64) ([]models.Measure, error)
+	GetByRiskID(ctx context.Context, riskID int64) ([]models.Measure, error)
 }
 
 // measureService implementa MeasureService
 type measureService struct {
 	measureRepo repository.MeasureRepository
 	shopRepo    repository.ShopRepository
+	riskRepo    repository.RiskRepository
 }
 
 // NewMeasureService crea una instancia de MeasureService
-func NewMeasureService(measureRepo repository.MeasureRepository, shopRepo repository.ShopRepository) MeasureService {
-	return &measureService{measureRepo: measureRepo, shopRepo: shopRepo}
+func NewMeasureService(measureRepo repository.MeasureRepository, shopRepo repository.ShopRepository, riskRepo repository.RiskRepository) MeasureService {
+	return &measureService{measureRepo: measureRepo, shopRepo: shopRepo, riskRepo: riskRepo}
 }
 
 func (s *measureService) GetByName(ctx context.Context, name string) (*models.Measure, error) {
@@ -100,6 +102,24 @@ func (s *measureService) GetApplicableForShop(ctx context.Context, shopID int64)
 	}
 
 	measures, err := s.measureRepo.GetApplicableForShop(ctx, shopID)
+	if err != nil {
+		return nil, models.ErrDatabase(err)
+	}
+	return measures, nil
+}
+
+func (s *measureService) GetByRiskID(ctx context.Context, riskID int64) ([]models.Measure, error) {
+	// Obtener el riesgo para conseguir su nombre
+	risk, err := s.riskRepo.GetByID(ctx, riskID)
+	if err != nil {
+		return nil, models.ErrDatabase(err)
+	}
+	if risk == nil {
+		return nil, models.ErrRiskNotFound
+	}
+
+	// Obtener medidas por nombre del riesgo
+	measures, err := s.measureRepo.GetByRisk(ctx, risk.Name)
 	if err != nil {
 		return nil, models.ErrDatabase(err)
 	}

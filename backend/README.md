@@ -58,6 +58,15 @@ backend/
 - Go 1.21+
 - PostgreSQL (o Supabase)
 
+### Modelo de Datos
+
+Las tiendas (Shops) y clusters utilizan **coordenadas UTM** para la geolocalización:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `utm_north` | float64 | Coordenada UTM Norte |
+| `utm_east` | float64 | Coordenada UTM Este |
+
 ### Instalación
 
 ```bash
@@ -83,7 +92,9 @@ go run cmd/api/main.go
 PORT=8080
 HOST=0.0.0.0
 
-# Base de datos (Supabase)
+# Base de datos (Supabase pooler - puerto 6543)
+# IMPORTANTE: Añadir ?default_query_exec_mode=exec para Supabase pooler
+DATABASE_URL=postgresql://postgres.xxx:password@xxx.pooler.supabase.com:6543/postgres?default_query_exec_mode=exec
 API_URL=https://your-project.supabase.co/rest/v1
 API_KEY=your-anon-key
 
@@ -141,6 +152,14 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 | GET | `/api/v1/measures` | Listar medidas |
 | GET | `/api/v1/measures?type=natural` | Filtrar por tipo |
 | GET | `/api/v1/measures/:name` | Obtener medida |
+
+### Riesgos
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/v1/risks` | Listar todos los riesgos climáticos |
+| GET | `/api/v1/risks/:id` | Obtener riesgo por ID |
+| GET | `/api/v1/risks/:id/measures` | Obtener medidas que mitigan un riesgo |
 
 ### Optimización
 

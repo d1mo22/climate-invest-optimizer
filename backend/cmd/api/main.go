@@ -61,7 +61,7 @@ func main() {
 	// Inicializar servicios
 	shopService := services.NewShopService(shopRepo, clusterRepo, riskRepo, measureRepo)
 	clusterService := services.NewClusterService(clusterRepo)
-	measureService := services.NewMeasureService(measureRepo, shopRepo)
+	measureService := services.NewMeasureService(measureRepo, shopRepo, riskRepo)
 	riskService := services.NewRiskService(riskRepo, clusterRepo)
 	optimizationService := services.NewOptimizationService(shopRepo, measureRepo, riskRepo)
 	dashboardService := services.NewDashboardService(shopRepo)

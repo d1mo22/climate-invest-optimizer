@@ -106,6 +106,7 @@ func Setup(r *gin.Engine, cfg *Config) {
 			{
 				risks.GET("", cfg.RiskHandler.List)
 				risks.GET("/:id", cfg.RiskHandler.GetByID)
+				risks.GET("/:id/measures", cfg.MeasureHandler.GetByRisk)
 			}
 
 			// ==================== OPTIMIZATION ====================
@@ -204,6 +205,7 @@ func SetupSimple(r *gin.Engine, cfg *Config) {
 		// Risks
 		v1.GET("/risks", cfg.RiskHandler.List)
 		v1.GET("/risks/:id", cfg.RiskHandler.GetByID)
+		v1.GET("/risks/:id/measures", cfg.MeasureHandler.GetByRisk)
 
 		// Optimization
 		v1.POST("/optimization/budget", cfg.OptimizationHandler.OptimizeBudget)
