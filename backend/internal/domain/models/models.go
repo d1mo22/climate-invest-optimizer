@@ -35,6 +35,7 @@ type Shop struct {
 	Surface          float64   `json:"surface" db:"surface"`
 	CarbonFootprint  float64   `json:"carbon_footprint" db:"carbonFootprint"`
 	ClusterID        int64     `json:"cluster_id" db:"cluster_id"`
+	Country          string    `json:"country" db:"country"`
 	CreatedAt        time.Time `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }

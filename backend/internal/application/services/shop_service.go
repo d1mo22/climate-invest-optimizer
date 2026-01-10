@@ -20,6 +20,7 @@ type ShopService interface {
 	RemoveMeasure(ctx context.Context, shopID int64, measureName string) error
 	GetRiskAssessment(ctx context.Context, shopID int64) (*models.RiskAssessmentResponse, error)
 	GetAppliedMeasures(ctx context.Context, shopID int64) ([]models.Measure, error)
+	GetRiskCoverage(ctx context.Context, shopID int64) (*models.RiskCoverageResponse, error)
 }
 
 // shopService implementa ShopService
@@ -58,13 +59,14 @@ func (s *shopService) Create(ctx context.Context, req *models.CreateShopRequest)
 
 	// Crear la tienda
 	shop := &models.Shop{
-		Location:        req.Location,
-		UtmNorth:        req.UtmNorth,
-		UtmEast:         req.UtmEast,
-		Surface:         req.Surface,
-		CarbonFootprint: req.CarbonFootprint,
-		ClusterID:       req.ClusterID,
-		TotalRisk:       0, // Se calculará después
+		Location:         req.Location,
+		UtmNorth:         req.UtmNorth,
+		UtmEast:          req.UtmEast,
+		Surface:          req.Surface,
+		CarbonFootprint:  req.CarbonFootprint,
+		ClusterID:        req.ClusterID,
+		Country:          req.Country,
+		TotalRisk:        0, // Se calculará después
 		TaxonomyCoverage: 0,
 	}
 
@@ -138,6 +140,9 @@ func (s *shopService) Update(ctx context.Context, id int64, req *models.UpdateSh
 		}
 		shop.ClusterID = *req.ClusterID
 	}
+	if req.Country != nil {
+		shop.Country = *req.Country
+	}
 
 	if err := s.shopRepo.Update(ctx, shop); err != nil {
 		return nil, models.ErrDatabase(err)
@@ -184,6 +189,7 @@ func (s *shopService) List(ctx context.Context, filter *models.ShopFilterRequest
 			Surface:          shop.Surface,
 			CarbonFootprint:  shop.CarbonFootprint,
 			ClusterID:        shop.ClusterID,
+			Country:          shop.Country,
 		}
 	}
 
@@ -375,4 +381,17 @@ func getRiskLevel(score float64) models.Level {
 	default:
 		return models.LevelVeryHigh
 	}
+}
+
+// GetRiskCoverage obtiene la cobertura de riesgos de una tienda
+func (s *shopService) GetRiskCoverage(ctx context.Context, shopID int64) (*models.RiskCoverageResponse, error) {
+	coverage, err := s.shopRepo.GetRiskCoverage(ctx, shopID)
+	if err != nil {
+		return nil, models.ErrDatabase(err)
+	}
+	if coverage == nil {
+		return nil, models.ErrShopNotFound
+	}
+
+	return coverage, nil
 }

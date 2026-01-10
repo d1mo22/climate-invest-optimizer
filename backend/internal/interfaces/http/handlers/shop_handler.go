@@ -331,3 +331,32 @@ func (h *ShopHandler) GetByCluster(c *gin.Context) {
 
 	respondWithSuccess(c, http.StatusOK, shops, "")
 }
+
+// GetRiskCoverage godoc
+// @Summary Obtiene la cobertura de riesgos de una tienda
+// @Description Retorna qué riesgos están cubiertos por las medidas aplicadas y cuáles no
+// @Tags shops
+// @Accept json
+// @Produce json
+// @Param id path int true "ID de la tienda"
+// @Success 200 {object} models.APIResponse[models.RiskCoverageResponse]
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /shops/{id}/risk-coverage [get]
+// @Security BearerAuth
+func (h *ShopHandler) GetRiskCoverage(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		respondWithError(c, models.ErrInvalidID)
+		return
+	}
+
+	coverage, err := h.shopService.GetRiskCoverage(c.Request.Context(), id)
+	if err != nil {
+		respondWithError(c, err)
+		return
+	}
+
+	respondWithSuccess(c, http.StatusOK, coverage, "")
+}

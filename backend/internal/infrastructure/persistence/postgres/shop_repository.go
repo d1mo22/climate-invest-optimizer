@@ -23,8 +23,8 @@ func NewShopRepository(db *sql.DB) *ShopRepository {
 // Create inserta una nueva tienda
 func (r *ShopRepository) Create(ctx context.Context, shop *models.Shop) error {
 	query := `
-		INSERT INTO "Shop" (location, utm_north, utm_east, surface, "carbonFootprint", cluster_id, "totalRisk", "taxonomyCoverage")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO "Shop" (location, utm_north, utm_east, surface, "carbonFootprint", cluster_id, "totalRisk", "taxonomyCoverage", country)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 	err := r.db.QueryRowContext(ctx, query,
@@ -36,6 +36,7 @@ func (r *ShopRepository) Create(ctx context.Context, shop *models.Shop) error {
 		shop.ClusterID,
 		shop.TotalRisk,
 		shop.TaxonomyCoverage,
+		shop.Country,
 	).Scan(&shop.ID)
 
 	if err != nil {
@@ -47,7 +48,7 @@ func (r *ShopRepository) Create(ctx context.Context, shop *models.Shop) error {
 // GetByID obtiene una tienda por su ID
 func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, error) {
 	query := `
-		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id
+		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id, country
 		FROM "Shop"
 		WHERE id = $1
 	`
@@ -62,6 +63,7 @@ func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, e
 		&shop.Surface,
 		&shop.CarbonFootprint,
 		&shop.ClusterID,
+		&shop.Country,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -76,9 +78,9 @@ func (r *ShopRepository) GetByID(ctx context.Context, id int64) (*models.Shop, e
 func (r *ShopRepository) Update(ctx context.Context, shop *models.Shop) error {
 	query := `
 		UPDATE "Shop"
-		SET location = $1, utm_north = $2, utm_east = $3, surface = $4, 
-		    "carbonFootprint" = $5, cluster_id = $6, "totalRisk" = $7, "taxonomyCoverage" = $8
-		WHERE id = $9
+		SET location = $1, utm_north = $2, utm_east = $3, surface = $4,
+		    "carbonFootprint" = $5, cluster_id = $6, "totalRisk" = $7, "taxonomyCoverage" = $8, country = $9
+		WHERE id = $10
 	`
 	result, err := r.db.ExecContext(ctx, query,
 		shop.Location,
@@ -89,6 +91,7 @@ func (r *ShopRepository) Update(ctx context.Context, shop *models.Shop) error {
 		shop.ClusterID,
 		shop.TotalRisk,
 		shop.TaxonomyCoverage,
+		shop.Country,
 		shop.ID,
 	)
 	if err != nil {
@@ -125,7 +128,7 @@ func (r *ShopRepository) Delete(ctx context.Context, id int64) error {
 // List obtiene una lista paginada de tiendas con filtros opcionales
 func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequest) ([]models.Shop, int64, error) {
 	// Construir query dinámicamente
-	baseQuery := `SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id FROM "Shop"`
+	baseQuery := `SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id, country FROM "Shop"`
 	countQuery := `SELECT COUNT(*) FROM "Shop"`
 
 	var conditions []string
@@ -230,6 +233,7 @@ func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequ
 			&shop.Surface,
 			&shop.CarbonFootprint,
 			&shop.ClusterID,
+			&shop.Country,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan shop: %w", err)
@@ -243,7 +247,7 @@ func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequ
 // GetByClusterID obtiene todas las tiendas de un cluster
 func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([]models.Shop, error) {
 	query := `
-		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id
+		SELECT id, location, utm_north, utm_east, COALESCE("totalRisk", 0), COALESCE("taxonomyCoverage", 0), COALESCE(surface, 0), COALESCE("carbonFootprint", 0), cluster_id, country
 		FROM "Shop"
 		WHERE cluster_id = $1
 		ORDER BY id
@@ -267,6 +271,7 @@ func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([
 			&shop.Surface,
 			&shop.CarbonFootprint,
 			&shop.ClusterID,
+			&shop.Country,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan shop: %w", err)
@@ -280,9 +285,9 @@ func (r *ShopRepository) GetByClusterID(ctx context.Context, clusterID int64) ([
 // GetWithDetails obtiene una tienda con información extendida
 func (r *ShopRepository) GetWithDetails(ctx context.Context, id int64) (*models.ShopWithDetails, error) {
 	query := `
-		SELECT s.id, s.location, s.utm_north, s.utm_east, COALESCE(s."totalRisk", 0), 
+		SELECT s.id, s.location, s.utm_north, s.utm_east, COALESCE(s."totalRisk", 0),
 		       COALESCE(s."taxonomyCoverage", 0), COALESCE(s.surface, 0), COALESCE(s."carbonFootprint", 0), s.cluster_id,
-		       c.name as cluster_name
+		       s.country, c.name as cluster_name
 		FROM "Shop" s
 		JOIN "Cluster" c ON s.cluster_id = c.id
 		WHERE s.id = $1
@@ -298,6 +303,7 @@ func (r *ShopRepository) GetWithDetails(ctx context.Context, id int64) (*models.
 		&shop.Surface,
 		&shop.CarbonFootprint,
 		&shop.ClusterID,
+		&shop.Country,
 		&shop.ClusterName,
 	)
 	if err == sql.ErrNoRows {
@@ -365,6 +371,144 @@ func (r *ShopRepository) RemoveMeasure(ctx context.Context, shopID int64, measur
 		return fmt.Errorf("measure not applied to this shop")
 	}
 	return nil
+}
+
+// GetRiskCoverage obtiene la cobertura de riesgos de una tienda
+func (r *ShopRepository) GetRiskCoverage(ctx context.Context, shopID int64) (*models.RiskCoverageResponse, error) {
+	// Obtener información de la tienda
+	shop, err := r.GetByID(ctx, shopID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shop: %w", err)
+	}
+	if shop == nil {
+		return nil, nil
+	}
+
+	// Obtener los riesgos del cluster de la tienda
+	risksQuery := `
+		SELECT r.id, r.name, cr.exposure, cr.sensitivity, cr.consequence, cr.probability
+		FROM "Risk" r
+		JOIN "Cluster_risk" cr ON r.id = cr.risk_id
+		WHERE cr.cluster_id = $1
+	`
+	risksRows, err := r.db.QueryContext(ctx, risksQuery, shop.ClusterID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get risks: %w", err)
+	}
+	defer risksRows.Close()
+
+	// Obtener las medidas aplicadas a la tienda
+	appliedMeasures, err := r.GetAppliedMeasures(ctx, shopID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get applied measures: %w", err)
+	}
+
+	// Crear un mapa de medidas aplicadas para búsqueda rápida
+	appliedMeasureNames := make(map[string]models.Measure)
+	for _, m := range appliedMeasures {
+		appliedMeasureNames[m.Name] = m
+	}
+
+	var riskItems []models.RiskCoverageItem
+	coveredCount := 0
+
+	for risksRows.Next() {
+		var riskID int64
+		var riskName string
+		var exposure, sensitivity, consequence, probability models.Level
+
+		if err := risksRows.Scan(&riskID, &riskName, &exposure, &sensitivity, &consequence, &probability); err != nil {
+			return nil, fmt.Errorf("failed to scan risk: %w", err)
+		}
+
+		// Calcular el score de riesgo
+		riskScore := calculateRiskScoreFromLevels(exposure, sensitivity, consequence, probability)
+
+		// Obtener todas las medidas que cubren este riesgo
+		measuresForRiskQuery := `
+			SELECT m.name, m."estimatedCost", m.type
+			FROM "Measure" m
+			JOIN "Risk_measures" rm ON m.name = rm.measure_name
+			WHERE rm.risk_name = $1
+		`
+		measuresRows, err := r.db.QueryContext(ctx, measuresForRiskQuery, riskName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get measures for risk: %w", err)
+		}
+
+		var coveringMeasures []models.Measure
+		var availableMeasures []models.Measure
+
+		for measuresRows.Next() {
+			var m models.Measure
+			if err := measuresRows.Scan(&m.Name, &m.EstimatedCost, &m.Type); err != nil {
+				measuresRows.Close()
+				return nil, fmt.Errorf("failed to scan measure: %w", err)
+			}
+
+			if _, applied := appliedMeasureNames[m.Name]; applied {
+				coveringMeasures = append(coveringMeasures, m)
+			} else {
+				availableMeasures = append(availableMeasures, m)
+			}
+		}
+		measuresRows.Close()
+
+		isCovered := len(coveringMeasures) > 0
+		if isCovered {
+			coveredCount++
+		}
+
+		riskItems = append(riskItems, models.RiskCoverageItem{
+			RiskID:            riskID,
+			RiskName:          riskName,
+			RiskScore:         riskScore,
+			IsCovered:         isCovered,
+			CoveringMeasures:  coveringMeasures,
+			AvailableMeasures: availableMeasures,
+		})
+	}
+
+	totalRisks := len(riskItems)
+	coveragePercentage := 0.0
+	if totalRisks > 0 {
+		coveragePercentage = float64(coveredCount) / float64(totalRisks) * 100
+	}
+
+	return &models.RiskCoverageResponse{
+		ShopID:             shopID,
+		ShopLocation:       shop.Location,
+		ShopCountry:        shop.Country,
+		TotalRisks:         totalRisks,
+		CoveredRisks:       coveredCount,
+		UncoveredRisks:     totalRisks - coveredCount,
+		CoveragePercentage: coveragePercentage,
+		Risks:              riskItems,
+	}, nil
+}
+
+// calculateRiskScoreFromLevels calcula el score de riesgo a partir de los niveles
+func calculateRiskScoreFromLevels(exposure, sensitivity, consequence, probability models.Level) float64 {
+	levelToValue := func(l models.Level) float64 {
+		switch l {
+		case models.LevelVeryLow:
+			return 0.1
+		case models.LevelLow:
+			return 0.3
+		case models.LevelMedium:
+			return 0.5
+		case models.LevelHigh:
+			return 0.7
+		case models.LevelVeryHigh:
+			return 0.9
+		default:
+			return 0.5
+		}
+	}
+
+	vulnerability := levelToValue(exposure) * levelToValue(sensitivity)
+	impact := levelToValue(consequence) * levelToValue(probability)
+	return vulnerability * impact
 }
 
 // GetStats obtiene estadísticas generales

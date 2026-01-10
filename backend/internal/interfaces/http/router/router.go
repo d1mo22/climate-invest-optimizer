@@ -77,6 +77,9 @@ func Setup(r *gin.Engine, cfg *Config) {
 				// Evaluación de riesgos
 				shops.GET("/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)
 
+				// Cobertura de riesgos
+				shops.GET("/:id/risk-coverage", cfg.ShopHandler.GetRiskCoverage)
+
 				// Medidas aplicables
 				shops.GET("/:id/applicable-measures", cfg.MeasureHandler.GetApplicableForShop)
 			}
@@ -190,6 +193,7 @@ func SetupSimple(r *gin.Engine, cfg *Config) {
 		v1.POST("/shops/:id/measures", cfg.ShopHandler.ApplyMeasures)
 		v1.DELETE("/shops/:id/measures/:measureName", cfg.ShopHandler.RemoveMeasure)
 		v1.GET("/shops/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)
+		v1.GET("/shops/:id/risk-coverage", cfg.ShopHandler.GetRiskCoverage)
 		v1.GET("/shops/:id/applicable-measures", cfg.MeasureHandler.GetApplicableForShop)
 
 		// Clusters

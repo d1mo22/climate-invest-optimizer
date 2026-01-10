@@ -1,0 +1,11 @@
+id,location,utm_north,utm_east,totalRisk,taxonomyCoverage,surface,carbonFootprint,cluster_id,country
+1,Tienda Sevilla,4493495.989,-666184.813,0,0,100,0,2,Spain
+2,Tienda Coruña 1,5261740.355,-881688.216,0,0,100,0,6,Spain
+3,Tienda Vigo,5180000,-920000,0,0,100,0,6,Spain
+4,Tienda Santiago,5230000,-850000,0,0,100,0,6,Spain
+5,Tienda Madrid 1,4926301.901,-411926.644,0,0,100,0,1,Spain
+6,Tienda Madrid 2,4880000,-450000,0,0,100,0,1,Spain
+7,Tienda Barcelona 1,5071403.089,241558.842,0,0,100,0,4,Spain
+8,Tienda Valencia,4789205.981,-41888.189,0,0,100,0,7,Spain
+9,Tienda Pamplona (Navarra),5050000,-200000,0,0,100,0,1,Spain
+10,Tienda Bilbao,5120000,-340000,0,0,100,0,1,Spain

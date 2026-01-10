@@ -1,18 +1,30 @@
-name,svg
-Aumento del nivel del mar,
-Inundación costera/fluvial/pluvial,
-Variabilidad hidrológica o de las precipitaciones,
-Cambios en los patrones y tipos de precipitaciones,
-Precipitaciones intensas/extremas,
-Ola de calor,
-Estrés térmico,
-Variabilidad de la temperatura,
-Cambios de temperatura,
-Incendio forestal,
-Tormenta,
-Ciclón/Huracán/Tifón,
-Erosión del costera,
-Desprendimento de tierras,
-Avalancha,
-Hundimiento,
+name,svg,id
+Cambios en los patrones y tipos de precipitaciones,,1
+Variabilidad hidrológica o de las precipitaciones,,2
+Estrés hídrico,,3
+Precipitaciones intensas/extremas,,4
+Inundación costera/fluvial/pluvial,,5
+Acidificación de los océanos,,6
+Intrusión salina,,7
+Aumento del nivel del mar,,8
+Sequía,,9
+Desbordamiento de un lago glaciar,,10
+Vientos cambiantes,,11
+Ciclón/Huracán/Tifón,,12
+Tormenta,,13
+Tornado,,14
+Cambios de temperatura,,15
+Deshielo del permafrost,,16
+Estrés térmico,,17
+Ola de calor,,18
+Olas de frío/heladas,,19
+Variabilidad de la temperatura,,20
+Incendio forestal,,21
+Erosión del costera,,22
+Degradación del suelo,,23
+Erosión del suelo,,24
+Soliflucción,,25
+Avalancha,,26
+Desprendimento de tierras,,27
+Hundimiento,,28
 

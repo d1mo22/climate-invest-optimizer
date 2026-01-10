@@ -17,23 +17,23 @@ Aumento del nivel del mar,Refuerzo estructural de elementos primarios y secundar
 Aumento del nivel del mar,Redes eléctricas subterráneas y protegidas
 Aumento del nivel del mar,Contraventanas exteriores y refuerzos de carpinterías
 
-Inundación costera/fluvual/pluvial,Zona ajardinada exterior
-Inundación costera/fluvual/pluvial,Jardín de lluvia
-Inundación costera/fluvual/pluvial,Elevación del suelo de la planta baja (suelo habitable sobre-elevado)
-Inundación costera/fluvual/pluvial,Colocación de dispositivos sanitarios por encima del nivel de inundación previsto
-Inundación costera/fluvual/pluvial,Colocación de instalaciones eléctricas y mecánicas por encima del nivel de inundación previsto
-Inundación costera/fluvual/pluvial,Deshumidificador
-Inundación costera/fluvual/pluvial,Barreras de protección contra inundaciones: temporales o permanentes
-Inundación costera/fluvual/pluvial,Sistemas de purificación de agua en lavabos y fregaderos (fuentes y dispensadores de agua potable)
-Inundación costera/fluvual/pluvial,Re-dimensionamiento de sistemas de evacuación de aguas pluviales
-Inundación costera/fluvual/pluvial,Mejora de la estanqueidad al agua líquida (impermeabilización)
-Inundación costera/fluvual/pluvial,Sistema de drenaje perimetral
-Inundación costera/fluvual/pluvial,Materiales de construcción resistentes al agua
-Inundación costera/fluvual/pluvial,Grupo electrógeno
-Inundación costera/fluvual/pluvial,Revisión periódica de los sistemas de evacuación de aguas pluviales
-Inundación costera/fluvual/pluvial,Refuerzo estructural de elementos primarios y secundarios
-Inundación costera/fluvual/pluvial,Redes eléctricas subterráneas y protegidas
-Inundación costera/fluvual/pluvial,Contraventanas exteriores y refuerzos de carpinterías
+Inundación costera/fluvial/pluvial,Zona ajardinada exterior/interior
+Inundación costera/fluvial/pluvial,Jardín de lluvia
+Inundación costera/fluvial/pluvial,Elevación del suelo de la planta baja (suelo habitable sobre-elevado)
+Inundación costera/fluvial/pluvial,Colocación de dispositivos sanitarios por encima del nivel de inundación previsto
+Inundación costera/fluvial/pluvial,Colocación de instalaciones eléctricas y mecánicas por encima del nivel de inundación previsto
+Inundación costera/fluvial/pluvial,Deshumidificador
+Inundación costera/fluvial/pluvial,Barreras de protección contra inundaciones: temporales o permanentes
+Inundación costera/fluvial/pluvial,Sistemas de purificación de agua en lavabos y fregaderos (fuentes y dispensadores de agua potable)
+Inundación costera/fluvial/pluvial,Re-dimensionamiento de sistemas de evacuación de aguas pluviales
+Inundación costera/fluvial/pluvial,Mejora de la estanqueidad al agua líquida (impermeabilización)
+Inundación costera/fluvial/pluvial,Sistema de drenaje perimetral
+Inundación costera/fluvial/pluvial,Materiales de construcción resistentes al agua
+Inundación costera/fluvial/pluvial,Grupo electrógeno
+Inundación costera/fluvial/pluvial,Revisión periódica de los sistemas de evacuación de aguas pluviales
+Inundación costera/fluvial/pluvial,Refuerzo estructural de elementos primarios y secundarios
+Inundación costera/fluvial/pluvial,Redes eléctricas subterráneas y protegidas
+Inundación costera/fluvial/pluvial,Contraventanas exteriores y refuerzos de carpinterías
 
 Variablildad hidrológica o de las precipitaciones,Cubierta vegetal (plana o inclinada)
 Variablildad hidrológica o de las precipitaciones,Zona ajardinada exterior/interior
@@ -209,83 +209,3 @@ Avalancha,Sistemas de purificación de agua en lavabos y fregaderos (fuentes y d
 Avalancha,Refuerzo estructural de elementos primarios y secundarios
 Avalancha,Grupo electrógeno
 Avalancha,Filtros y sistemas de purificación de aire (filtración de aire exterior)
-
-Aumento del nivel del mar,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Aumento del nivel del mar,Plan de emergencia (Plan de autoprotección)
-Aumento del nivel del mar,Sistemas de alerta temprana
-Aumento del nivel del mar,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Inundación costera/fluvual/pluvial,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Inundación costera/fluvual/pluvial,Plan de emergencia (Plan de autoprotección)
-Inundación costera/fluvual/pluvial,Sistemas de alerta temprana
-Inundación costera/fluvual/pluvial,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Variablildad hidrológica o de las precipitaciones,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Variablildad hidrológica o de las precipitaciones,Plan de emergencia (Plan de autoprotección)
-Variablildad hidrológica o de las precipitaciones,Sistemas de alerta temprana
-Variablildad hidrológica o de las precipitaciones,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Cambios en los patrones y tipos de precipitaciones,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Cambios en los patrones y tipos de precipitaciones,Plan de emergencia (Plan de autoprotección)
-Cambios en los patrones y tipos de precipitaciones,Sistemas de alerta temprana
-Cambios en los patrones y tipos de precipitaciones,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Precipitaciones intensas,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Precipitaciones intensas,Plan de emergencia (Plan de autoprotección)
-Precipitaciones intensas,Sistemas de alerta temprana
-Precipitaciones intensas,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Ola de calor,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Ola de calor,Plan de emergencia (Plan de autoprotección)
-Ola de calor,Sistemas de alerta temprana
-Ola de calor,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Estrés térmico,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Estrés térmico,Plan de emergencia (Plan de autoprotección)
-Estrés térmico,Sistemas de alerta temprana
-Estrés térmico,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Variabilidad de temperatura,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Variabilidad de temperatura,Plan de emergencia (Plan de autoprotección)
-Variabilidad de temperatura,Sistemas de alerta temprana
-Variabilidad de temperatura,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Cambios de temperatura,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Cambios de temperatura,Plan de emergencia (Plan de autoprotección)
-Cambios de temperatura,Sistemas de alerta temprana
-Cambios de temperatura,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Incendio forestal,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Incendio forestal,Plan de emergencia (Plan de autoprotección)
-Incendio forestal,Sistemas de alerta temprana
-Incendio forestal,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Tormenta,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Tormenta,Plan de emergencia (Plan de autoprotección)
-Tormenta,Sistemas de alerta temprana
-Tormenta,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Ciclón/Huracán/Tifón,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Ciclón/Huracán/Tifón,Plan de emergencia (Plan de autoprotección)
-Ciclón/Huracán/Tifón,Sistemas de alerta temprana
-Ciclón/Huracán/Tifón,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Erosión costera,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Erosión costera,Plan de emergencia (Plan de autoprotección)
-Erosión costera,Sistemas de alerta temprana
-Erosión costera,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Desprendimiento de tierras,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Desprendimiento de tierras,Plan de emergencia (Plan de autoprotección)
-Desprendimiento de tierras,Sistemas de alerta temprana
-Desprendimiento de tierras,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Hundimiento,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Hundimiento,Plan de emergencia (Plan de autoprotección)
-Hundimiento,Sistemas de alerta temprana
-Hundimiento,Contratación de un seguro de cobertura ante impactos del Cambio Climático
-
-Avalancha,Plan de capacitación de empleados ante los riesgos del Cambio Climático
-Avalancha,Plan de emergencia (Plan de autoprotección)
-Avalancha,Sistemas de alerta temprana
-Avalancha,Contratación de un seguro de cobertura ante impactos del Cambio Climático

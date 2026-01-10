@@ -4,9 +4,11 @@
 CREATE TABLE public.Cluster (
   id smallint GENERATED ALWAYS AS IDENTITY NOT NULL,
   name text NOT NULL,
-  utm_north real NOT NULL,
-  utm_east real NOT NULL,
-  CONSTRAINT Cluster_pkey PRIMARY KEY (id)
+  utm_north double precision NOT NULL,
+  utm_east double precision NOT NULL,
+  country character varying,
+  CONSTRAINT Cluster_pkey PRIMARY KEY (id),
+  CONSTRAINT Cluster_country_fkey FOREIGN KEY (country) REFERENCES public.Country(name)
 );
 CREATE TABLE public.Cluster_risk (
   cluster_id smallint NOT NULL,
@@ -31,27 +33,29 @@ CREATE TABLE public.Measure (
 );
 CREATE TABLE public.Risk (
   name text NOT NULL,
-  svg text UNIQUE,
   id smallint UNIQUE,
   CONSTRAINT Risk_pkey PRIMARY KEY (name)
 );
 CREATE TABLE public.Risk_measures (
   risk_name text NOT NULL,
   measure_name text NOT NULL,
-  CONSTRAINT Risk_measures_pkey PRIMARY KEY (risk_name, measure_name)
+  CONSTRAINT Risk_measures_pkey PRIMARY KEY (risk_name, measure_name),
+  CONSTRAINT Risk_measures_measure_name_fkey FOREIGN KEY (measure_name) REFERENCES public.Measure(name)
 );
 CREATE TABLE public.Shop (
   id smallint GENERATED ALWAYS AS IDENTITY NOT NULL,
   location text NOT NULL,
-  utm_north real NOT NULL,
-  utm_east real NOT NULL,
+  utm_north double precision NOT NULL,
+  utm_east double precision NOT NULL,
   totalRisk real,
   taxonomyCoverage real,
   surface real,
   carbonFootprint real,
   cluster_id smallint NOT NULL,
+  country character varying NOT NULL,
   CONSTRAINT Shop_pkey PRIMARY KEY (id),
-  CONSTRAINT Shop_cluster_id_fkey FOREIGN KEY (cluster_id) REFERENCES public.Cluster(id)
+  CONSTRAINT Shop_cluster_id_fkey FOREIGN KEY (cluster_id) REFERENCES public.Cluster(id),
+  CONSTRAINT Shop_country_fkey FOREIGN KEY (country) REFERENCES public.Country(name)
 );
 CREATE TABLE public.Shop_measure (
   shop_id smallint NOT NULL,

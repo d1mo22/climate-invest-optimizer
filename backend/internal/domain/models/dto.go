@@ -13,6 +13,7 @@ type CreateShopRequest struct {
 	Surface         float64 `json:"surface" binding:"required,gt=0"`
 	CarbonFootprint float64 `json:"carbon_footprint" binding:"gte=0"`
 	ClusterID       int64   `json:"cluster_id" binding:"required,gt=0"`
+	Country         string  `json:"country" binding:"required,min=2,max=100"`
 }
 
 // UpdateShopRequest representa la solicitud para actualizar una tienda
@@ -23,6 +24,7 @@ type UpdateShopRequest struct {
 	Surface         *float64 `json:"surface,omitempty" binding:"omitempty,gt=0"`
 	CarbonFootprint *float64 `json:"carbon_footprint,omitempty" binding:"omitempty,gte=0"`
 	ClusterID       *int64   `json:"cluster_id,omitempty" binding:"omitempty,gt=0"`
+	Country         *string  `json:"country,omitempty" binding:"omitempty,min=2,max=100"`
 }
 
 // ApplyMeasuresRequest representa la solicitud para aplicar medidas a una tienda
@@ -109,6 +111,7 @@ type ShopResponse struct {
 	CarbonFootprint  float64 `json:"carbon_footprint"`
 	ClusterID        int64   `json:"cluster_id"`
 	ClusterName      string  `json:"cluster_name,omitempty"`
+	Country          string  `json:"country"`
 }
 
 // OptimizationResult representa el resultado de la optimización de presupuesto
@@ -180,4 +183,26 @@ type DashboardStats struct {
 	AppliedMeasures    int64   `json:"applied_measures"`
 	TotalInvestment    float64 `json:"total_investment"`
 	CoveragePercentage float64 `json:"coverage_percentage"`
+}
+
+// RiskCoverageResponse representa la cobertura de riesgos de una tienda
+type RiskCoverageResponse struct {
+	ShopID             int64              `json:"shop_id"`
+	ShopLocation       string             `json:"shop_location"`
+	ShopCountry        string             `json:"shop_country"`
+	TotalRisks         int                `json:"total_risks"`
+	CoveredRisks       int                `json:"covered_risks"`
+	UncoveredRisks     int                `json:"uncovered_risks"`
+	CoveragePercentage float64            `json:"coverage_percentage"`
+	Risks              []RiskCoverageItem `json:"risks"`
+}
+
+// RiskCoverageItem representa un riesgo con su estado de cobertura
+type RiskCoverageItem struct {
+	RiskID            int64     `json:"risk_id"`
+	RiskName          string    `json:"risk_name"`
+	RiskScore         float64   `json:"risk_score"`
+	IsCovered         bool      `json:"is_covered"`
+	CoveringMeasures  []Measure `json:"covering_measures,omitempty"`
+	AvailableMeasures []Measure `json:"available_measures,omitempty"`
 }

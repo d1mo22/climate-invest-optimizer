@@ -1,36 +1,36 @@
 name,estimatedCost,type
-Zona ajardinada exterior/interior,1500,natural  
-Jardín de lluvia,2000,natural          
+Zona ajardinada exterior/interior,1500,natural
+Jardín de lluvia,2000,natural
 Cubierta vegetal (plana o inclinada),2800,natural
 Fachada vegetal,3000,natural
 Xerojardinería: vegetación de bajos requerimientos hídricos,1000,natural
-Barreras anti-viento vegetales,1200,natural 
+Barreras anti-viento vegetales,1200,natural
 
-Elevación del suelo de la planta baja (suelo habitable sobre-elevado),5000,material  
-Colocación de dispositivos sanitarios por encima del nivel de inundación previsto,3000,material 
-Colocación de instalaciones eléctricas y mecánicas por encima del nivel de inundación previsto,2500,material 
-Deshumidificador,800,material  
-Barreras de protección contra inundaciones: temporales o permanentes,4000,material  
-Sistemas de purificación de agua en lavabos y fregaderos (fuentes y dispensadores de agua potable),1200,material  
-Re-dimensionamiento de sistemas de evacuación de aguas pluviales,3500,material 
-Mejora de la estanqueidad al agua líquida (impermeabilización),2200,material  
-Sistema de drenaje perimetral,4500,material  
-Materiales de construcción resistentes al agua,1800,material  
+Elevación del suelo de la planta baja (suelo habitable sobre-elevado),5000,material
+Colocación de dispositivos sanitarios por encima del nivel de inundación previsto,3000,material
+Colocación de instalaciones eléctricas y mecánicas por encima del nivel de inundación previsto,2500,material
+Deshumidificador,800,material
+Barreras de protección contra inundaciones: temporales o permanentes,4000,material
+Sistemas de purificación de agua en lavabos y fregaderos (fuentes y dispensadores de agua potable),1200,material
+Re-dimensionamiento de sistemas de evacuación de aguas pluviales,3500,material
+Mejora de la estanqueidad al agua líquida (impermeabilización),2200,material
+Sistema de drenaje perimetral,4500,material
+Materiales de construcción resistentes al agua,1800,material
 Grupo electrógeno,6000,material
-Revisión periódica de los sistemas de evacuación de aguas pluviales,400,material  
-Refuerzo estructural de elementos primarios y secundarios,7000,material  
-Redes eléctricas subterráneas y protegidas,5500,material 
-Contraventanas exteriores y refuerzos de carpinterías,3200,material  
+Revisión periódica de los sistemas de evacuación de aguas pluviales,400,material
+Refuerzo estructural de elementos primarios y secundarios,7000,material
+Redes eléctricas subterráneas y protegidas,5500,material
+Contraventanas exteriores y refuerzos de carpinterías,3200,material
 Separación entre la fachada y el desagüe de pluviales,1500,material
 Building Management System (BMS),1000,material
 Ventilación mecánica controlada (VMC) con recuperador de calor,2500,material
 Orientación y dimensionado de los huecos acristalados,2000,material
 Reflectividad de la envolvente,1250,material
 Aislamiento térmico continuo y de espesor adecuado,1500,material
-Actualización y mejora del sistema de climatización,3000,material 
-Mejora de la hermeticidad al aire,1800,material 
+Actualización y mejora del sistema de climatización,3000,material
+Mejora de la hermeticidad al aire,1800,material
 Disposición de juntas de dilatación o contracción,1600,material
-Filtros y sistemas de purificación de aire (filtración de aire exterior),2000,material 
+Filtros y sistemas de purificación de aire (filtración de aire exterior),2000,material
 Actualización y mejora del sistema de Protección contra incendios (PCI),3500,material
 Sectorización de incendios,3000,material
 

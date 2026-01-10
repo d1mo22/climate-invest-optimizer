@@ -29,6 +29,9 @@ type ShopRepository interface {
 
 	// Estadísticas
 	GetStats(ctx context.Context) (*models.DashboardStats, error)
+
+	// Cobertura de riesgos
+	GetRiskCoverage(ctx context.Context, shopID int64) (*models.RiskCoverageResponse, error)
 }
 
 // ClusterRepository define las operaciones de acceso a datos para clusters
