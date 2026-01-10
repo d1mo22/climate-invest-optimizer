@@ -1,20 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PageContainer,
   ProCard,
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button, Progress } from "antd";
+import { Button, Progress, Spin, Alert } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
-import { data as allCountriesData } from "./DashBoards";
-import { slugify } from "../utils/slugify";
+import { shopService, clusterService, dashboardService } from "../services";
+import type { ShopWithCluster } from "../services/shopService";
+import { computeSuggestedInvestment } from "../utils/suggestedInvestment";
 
 /* =========================
    Alias slug -> nombre país
 ========================= */
 const ALIAS: Record<string, string> = {
+  // Slugs en inglés (para URLs limpias)
   spain: "España",
   germany: "Alemania",
   france: "Francia",
@@ -60,857 +62,766 @@ const ALIAS: Record<string, string> = {
   moldova: "Moldavia",
   ukraine: "Ucrania",
   belarus: "Bielorrusia",
+  portugal: "Portugal",
+  turkey: "Turquía",
+  // Slugs generados por slugify (nombres en español sin acentos)
+  espana: "España",
+  alemania: "Alemania",
+  francia: "Francia",
+  italia: "Italia",
+  "reino-unido": "Reino Unido",
+  "paises-bajos": "Países Bajos",
+  belgica: "Bélgica",
+  suiza: "Suiza",
+  polonia: "Polonia",
+  chequia: "Chequia",
+  eslovaquia: "Eslovaquia",
+  hungria: "Hungría",
+  eslovenia: "Eslovenia",
+  croacia: "Croacia",
+  grecia: "Grecia",
+  rumania: "Rumanía",
+  lituania: "Lituania",
+  letonia: "Letonia",
+  finlandia: "Finlandia",
+  suecia: "Suecia",
+  noruega: "Noruega",
+  islandia: "Islandia",
+  irlanda: "Irlanda",
+  moldavia: "Moldavia",
+  ucrania: "Ucrania",
+  bielorrusia: "Bielorrusia",
+  turquia: "Turquía",
+  dinamarca: "Dinamarca",
 };
 
-const exampleCountryData = {
-  país: "España",
-  inversión: 120,
-  ROI: "12.0%",
-  riesgosTotales: 22,
-  riesgosResueltos: 16,
-  riesgosPendientes: 6,
-  pctRiesgosResueltos: "72.7%",
-  tiendasTotales: 144,
-  tiendasMejoradas: 78,
-  pctTiendasMejoradas: "54.2%",
-  beneficioAnual: 14.4,
-  planNextYear: 48,
-  plan10y: 420,
+// Mapeo de nombres en español a inglés (para buscar en la BD que tiene inglés)
+const COUNTRY_ES_TO_EN: Record<string, string> = {
+  "España": "Spain",
+  "Alemania": "Germany",
+  "Francia": "France",
+  "Italia": "Italy",
+  "Reino Unido": "United Kingdom",
+  "Países Bajos": "Netherlands",
+  "Bélgica": "Belgium",
+  "Suiza": "Switzerland",
+  "Austria": "Austria",
+  "Polonia": "Poland",
+  "Chequia": "Czech Republic",
+  "Eslovaquia": "Slovakia",
+  "Hungría": "Hungary",
+  "Eslovenia": "Slovenia",
+  "Croacia": "Croatia",
+  "Grecia": "Greece",
+  "Rumanía": "Romania",
+  "Bulgaria": "Bulgaria",
+  "Lituania": "Lithuania",
+  "Letonia": "Latvia",
+  "Estonia": "Estonia",
+  "Finlandia": "Finland",
+  "Suecia": "Sweden",
+  "Noruega": "Norway",
+  "Dinamarca": "Denmark",
+  "Islandia": "Iceland",
+  "Irlanda": "Ireland",
+  "Portugal": "Portugal",
+  "Turquía": "Turkey",
+  "Ucrania": "Ukraine",
+  "Bielorrusia": "Belarus",
+  "Moldavia": "Moldova",
+  "Albania": "Albania",
+  "Serbia": "Serbia",
+  "Montenegro": "Montenegro",
+  "Macedonia del Norte": "North Macedonia",
+  "Bosnia y Herzegovina": "Bosnia and Herzegovina",
+  "Kosovo": "Kosovo",
+  "Andorra": "Andorra",
+  "Mónaco": "Monaco",
+  "San Marino": "San Marino",
+  "Liechtenstein": "Liechtenstein",
+  "Luxemburgo": "Luxembourg",
+  "Malta": "Malta",
+  "Chipre": "Cyprus",
 };
 
-const risksByCountry: Record<
-  string,
-  Array<{
-    id: number;
-    tipo: string;
-    descripcion: string;
-    frecuencia: "Alta" | "Media" | "Baja";
-    impacto: "Alto" | "Medio" | "Bajo";
-    estado: "Resuelto" | "Pendiente";
-    tiendas_afectadas: number;
-  }>
-> = {
-  España: [
-    {
-      id: 1,
-      tipo: "Energético",
-      descripcion: "Fluctuaciones en el precio de energía",
-      frecuencia: "Alta",
-      impacto: "Alto",
-      estado: "Resuelto",
-      tiendas_afectadas: 45,
-    },
-    {
-      id: 2,
-      tipo: "Climático",
-      descripcion: "Sequías estacionales",
-      frecuencia: "Alta",
-      impacto: "Medio",
-      estado: "Resuelto",
-      tiendas_afectadas: 32,
-    },
-    {
-      id: 3,
-      tipo: "Regulatorio",
-      descripcion: "Cambios en normas de eficiencia",
-      frecuencia: "Media",
-      impacto: "Medio",
-      estado: "Resuelto",
-      tiendas_afectadas: 28,
-    },
-    {
-      id: 4,
-      tipo: "Operacional",
-      descripcion: "Fallo en sistemas HVAC",
-      frecuencia: "Media",
-      impacto: "Alto",
-      estado: "Pendiente",
-      tiendas_afectadas: 15,
-    },
-    {
-      id: 5,
-      tipo: "Financiero",
-      descripcion: "Volatilidad en tipos de cambio",
-      frecuencia: "Alta",
-      impacto: "Bajo",
-      estado: "Pendiente",
-      tiendas_afectadas: 8,
-    },
-    {
-      id: 6,
-      tipo: "Reputacional",
-      descripcion: "Impacto de huella de carbono",
-      frecuencia: "Media",
-      impacto: "Medio",
-      estado: "Pendiente",
-      tiendas_afectadas: 12,
-    },
-  ],
-  Alemania: [
-    {
-      id: 1,
-      tipo: "Regulatorio",
-      descripcion: "Regulaciones de emisiones de CO2",
-      frecuencia: "Alta",
-      impacto: "Alto",
-      estado: "Resuelto",
-      tiendas_afectadas: 52,
-    },
-    {
-      id: 2,
-      tipo: "Energético",
-      descripcion: "Dependencia de energía renovable",
-      frecuencia: "Alta",
-      impacto: "Medio",
-      estado: "Resuelto",
-      tiendas_afectadas: 38,
-    },
-    {
-      id: 3,
-      tipo: "Climático",
-      descripcion: "Inviernos extremos",
-      frecuencia: "Media",
-      impacto: "Alto",
-      estado: "Resuelto",
-      tiendas_afectadas: 25,
-    },
-    {
-      id: 4,
-      tipo: "Operacional",
-      descripcion: "Mantenimiento preventivo",
-      frecuencia: "Media",
-      impacto: "Medio",
-      estado: "Pendiente",
-      tiendas_afectadas: 18,
-    },
-    {
-      id: 5,
-      tipo: "Suministro",
-      descripcion: "Cadena de suministro disruptiva",
-      frecuencia: "Baja",
-      impacto: "Alto",
-      estado: "Pendiente",
-      tiendas_afectadas: 10,
-    },
-  ],
-  Francia: [
-    {
-      id: 1,
-      tipo: "Energético",
-      descripcion: "Disponibilidad de energía nuclear",
-      frecuencia: "Media",
-      impacto: "Alto",
-      estado: "Resuelto",
-      tiendas_afectadas: 40,
-    },
-    {
-      id: 2,
-      tipo: "Climático",
-      descripcion: "Olas de calor",
-      frecuencia: "Alta",
-      impacto: "Alto",
-      estado: "Resuelto",
-      tiendas_afectadas: 35,
-    },
-    {
-      id: 3,
-      tipo: "Regulatorio",
-      descripcion: "Regulaciones de etiquetado",
-      frecuencia: "Media",
-      impacto: "Medio",
-      estado: "Resuelto",
-      tiendas_afectadas: 22,
-    },
-    {
-      id: 4,
-      tipo: "Operacional",
-      descripcion: "Gestión de residuos",
-      frecuencia: "Alta",
-      impacto: "Bajo",
-      estado: "Pendiente",
-      tiendas_afectadas: 14,
-    },
-    {
-      id: 5,
-      tipo: "Financiero",
-      descripcion: "Costos de descarbonización",
-      frecuencia: "Alta",
-      impacto: "Alto",
-      estado: "Pendiente",
-      tiendas_afectadas: 20,
-    },
-  ],
+// Función para obtener el nombre en inglés para buscar en BD
+const getEnglishCountryName = (spanishName: string): string => {
+  return COUNTRY_ES_TO_EN[spanishName] || spanishName;
 };
 
-/* =========================
-   Helpers UI (suaviza look)
-========================= */
-const cardStyle: React.CSSProperties = {
-  borderRadius: 16,
-  overflow: "hidden",
-  background:
-    "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
-  border: "1px solid rgba(255,255,255,0.10)",
-};
-const cardBody = { padding: 14 };
+interface CountryData {
+  país: string;
+  inversión: number;
+  ROI: string;
+  riesgosTotales: number;
+  riesgosResueltos: number;
+  riesgosPendientes: number;
+  pctRiesgosResueltos: string;
+  tiendasTotales: number;
+  tiendasMejoradas: number;
+  pctTiendasMejoradas: string;
+  beneficioAnual: number;
+  planNextYear: number;
+  plan10y: number;
+}
 
-const softButton: React.CSSProperties = {
-  cursor: "pointer",
-  borderRadius: 12,
-  padding: "10px 12px",
-  border: "1px solid rgba(255,255,255,0.12)",
-  background:
-    "linear-gradient(135deg, rgba(0,255,136,0.95), rgba(75,107,253,0.95))",
-  color: "#0b0b0f",
-  fontWeight: 900,
-  boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
-};
+interface RiskData {
+  id: number;
+  tipo: string;
+  descripcion: string;
+  frecuencia: "Alta" | "Media" | "Baja";
+  impacto: "Alto" | "Medio" | "Bajo";
+  estado: "Resuelto" | "Pendiente";
+  tiendas_afectadas: number;
+}
 
-const subtleBtn: React.CSSProperties = {
-  cursor: "pointer",
-  borderRadius: 12,
-  padding: "10px 12px",
-  border: "1px solid rgba(255,255,255,0.10)",
-  background: "rgba(255,255,255,0.06)",
-  color: "rgba(255,255,255,0.92)",
-  fontWeight: 800,
+type ShopCoverageComputed = {
+  suggestedInvestment: number;
+  totalRisks: number;
+  coveredRisks: number;
+  uncoveredRisks: number;
+  coveragePct: number;
 };
-
-const scoreColor = (score: number) =>
-  score > 80 ? "#ff4d4f" : score > 50 ? "#faad14" : "#52c41a";
 
 export default function CountryDashboard() {
   const navigate = useNavigate();
-  const { slug = "" } = useParams<{ slug: string }>();
-
-  // 1) slug español
-  let countryData = allCountriesData.find((c) => slugify(c.país) === slug);
-
-  // 2) slug inglés -> alias -> país
-  if (!countryData && ALIAS[slug]) {
-    const name = ALIAS[slug];
-    countryData = allCountriesData.find((c) => c.país === name);
-  }
-
-  if (!countryData) countryData = exampleCountryData as any;
-  const data = countryData as any;
-
-  const countryRisks = risksByCountry[data.país] || risksByCountry["España"];
-
-  const [stores, setStores] = useState<Array<any>>([]);
-  const [loadingStores, setLoadingStores] = useState<boolean>(true);
+  const { slug } = useParams<{ slug: string }>();
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [countryData, setCountryData] = useState<CountryData | null>(null);
+  const [risks, setRisks] = useState<RiskData[]>([]);
+  const [shops, setShops] = useState<ShopWithCluster[]>([]);
+  const [shopCoverageById, setShopCoverageById] = useState<Record<number, ShopCoverageComputed>>({});
 
   useEffect(() => {
-    const loadStores = async () => {
-      setLoadingStores(true);
-      try {
-        const res = await fetch("/data/Store_rows_utm_simple.csv");
-        const text = await res.text();
-        const [headerLine, ...lines] = text.trim().split(/\r?\n/);
-        const headers = headerLine.split(",").map((h) => h.trim());
+    loadCountryData();
+  }, [slug]);
 
-        const rows = lines.map((line) => {
-          const vals = line.split(",").map((v) => v.trim());
-          const row: any = {};
-          headers.forEach((h, i) => (row[h] = vals[i]));
-          return row;
-        });
+  const loadCountryData = async () => {
+    if (!slug) return;
 
-        const countryName = data.país;
-        const filtered = rows.filter(
-          (r: any) => (r.country || "").trim() === countryName
-        );
+    try {
+      setLoading(true);
+      setError(null);
 
-        const enriched = filtered.map((s: any) => {
-          const currentRoi = +(Math.random() * 15 + 2).toFixed(1);
-          const riskLevel =
-            Math.random() > 0.6 ? "Alto" : Math.random() > 0.5 ? "Medio" : "Bajo";
+      // Get country name from slug (ALIAS gives us Spanish name)
+      const countryNameSpanish = ALIAS[slug] || slug;
+      // Convert to English for DB filtering
+      const countryNameEnglish = getEnglishCountryName(countryNameSpanish);
 
-          let score = 0;
-          if (riskLevel === "Alto") score += 50;
-          if (riskLevel === "Medio") score += 30;
-          if (currentRoi < 5) score += 40;
-          else if (currentRoi < 10) score += 20;
-          score = Math.min(Math.round(score + Math.random() * 10), 100);
+      // Fetch shops for this country (pull all and filter client-side for now)
+      const [shopsResponse, stats] = await Promise.all([
+        // Respeta el límite de validación del backend (<=100)
+        shopService.getShops({ page_size: 100 }),
+        dashboardService.getStats(),
+      ]);
 
-          return {
-            id: s.id,
-            name: s.name,
-            roi: currentRoi,
-            riskLevel,
-            priorityScore: score,
-            investmentNeeded: `${(Math.random() * 2 + 0.5).toFixed(1)}M€`,
-          };
-        });
+      // Filter shops by country using the English name from database
+      const countryShops = shopsResponse.items.filter((shop) => {
+        if (!shop.country) return false;
+        return shop.country.toLowerCase() === countryNameEnglish.toLowerCase();
+      });
 
-        enriched.sort((a, b) => b.priorityScore - a.priorityScore);
-        setStores(enriched);
-      } catch (e) {
-        console.error("Error cargando tiendas:", e);
-        setStores([]);
-      } finally {
-        setLoadingStores(false);
+      if (countryShops.length === 0) {
+        setError(`No se encontraron tiendas para ${countryNameSpanish}`);
+        setLoading(false);
+        return;
       }
-    };
 
-    loadStores();
-  }, [data.país]);
+      // Guardar tiendas del país para la tabla (ordenadas por riesgo desc)
+      const sortedCountryShops = [...countryShops].sort(
+        (a, b) => (b.totalRisk || 0) - (a.totalRisk || 0)
+      );
+      setShops(sortedCountryShops);
 
-  const frequencyOrder = { Alta: 1, Media: 2, Baja: 3 };
-  const mostFrequentRisks = useMemo(
-    () =>
-      [...countryRisks]
-        .sort((a, b) => frequencyOrder[a.frecuencia] - frequencyOrder[b.frecuencia])
-        .slice(0, 5),
-    [countryRisks]
-  );
+      // Fetch risk-coverage por tienda: fuente de verdad para coherencia y para inversión sugerida.
+      const coverageResults = await Promise.all(
+        sortedCountryShops.map(async (shop) => {
+          try {
+            const coverage = await shopService.getRiskCoverage(shop.id);
 
-  const mostExposedRisks = useMemo(
-    () => [...countryRisks].sort((a, b) => b.tiendas_afectadas - a.tiendas_afectadas).slice(0, 5),
-    [countryRisks]
-  );
+            // Inversión sugerida: considera que una medida puede mitigar varios riesgos
+            // (aprox greedy set cover para no pagarla dos veces).
+            const suggestedInvestment = computeSuggestedInvestment(coverage.risks || []);
 
-  const risksByType = useMemo(() => {
-    return countryRisks.reduce((acc, risk) => {
-      const existing = acc.find((r) => r.tipo === risk.tipo);
-      if (existing) existing.cantidad++;
-      else acc.push({ tipo: risk.tipo, cantidad: 1 });
-      return acc;
-    }, [] as Array<{ tipo: string; cantidad: number }>);
-  }, [countryRisks]);
+            return {
+              shopId: shop.id,
+              computed: {
+                suggestedInvestment,
+                totalRisks: coverage.total_risks,
+                coveredRisks: coverage.covered_risks,
+                uncoveredRisks: coverage.uncovered_risks,
+                coveragePct: coverage.coverage_percentage,
+              } satisfies ShopCoverageComputed,
+              risks: coverage.risks || [],
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
 
-  const riskTypeConfig = {
-    data: risksByType,
-    angleField: "cantidad",
-    colorField: "tipo",
-    legend: { position: "right" as const },
-    label: { type: "inner", offset: "-30%", content: "{percentage}" },
-    interactions: [{ type: "element-active" }],
+      const nextCoverageById: Record<number, ShopCoverageComputed> = {};
+      const riskCounts = new Map<number, { affected: number; covered: number }>();
+
+      for (const r of coverageResults) {
+        if (!r) continue;
+        nextCoverageById[r.shopId] = r.computed;
+        for (const risk of r.risks) {
+          const current = riskCounts.get(risk.risk_id) || { affected: 0, covered: 0 };
+          current.affected += 1;
+          if (risk.is_covered) current.covered += 1;
+          riskCounts.set(risk.risk_id, current);
+        }
+      }
+      setShopCoverageById(nextCoverageById);
+
+      // Reordenar por prioridad real: inversión sugerida desc, luego riesgo desc.
+      if (Object.keys(nextCoverageById).length) {
+        const enrichedSorted = [...sortedCountryShops].sort((a, b) => {
+          const invA = nextCoverageById[a.id]?.suggestedInvestment ?? -1;
+          const invB = nextCoverageById[b.id]?.suggestedInvestment ?? -1;
+          if (invA !== invB) return invB - invA;
+          return (b.totalRisk || 0) - (a.totalRisk || 0);
+        });
+        setShops(enrichedSorted);
+      }
+
+      // Get risks from clusters (faster: direct endpoint per cluster)
+      const clusterIds = [...new Set(countryShops.map((s) => s.cluster_id))];
+      const riskMap = new Map<number, any>();
+
+      for (const clusterId of clusterIds) {
+        const risks = await clusterService.getClusterRisks(clusterId).catch(() => []);
+        risks.forEach((clusterRisk) => {
+          const riskId = clusterRisk.id;
+          if (!riskMap.has(riskId)) {
+            const counts = riskCounts.get(riskId);
+            const isFullyCovered = counts ? counts.covered >= counts.affected : false;
+            riskMap.set(riskId, {
+              id: riskId,
+              tipo: mapRiskType(clusterRisk.name || ""),
+              descripcion: clusterRisk.name || "",
+              frecuencia: mapLevel(clusterRisk.probability),
+              impacto: mapLevel(clusterRisk.consequence),
+              estado: isFullyCovered ? "Resuelto" : "Pendiente",
+              tiendas_afectadas: counts?.affected ?? 0,
+            });
+          }
+          // Si no tenemos counts (fallback), al menos marcamos 1 tienda afectada.
+          const risk = riskMap.get(riskId);
+          if (!riskCounts.has(riskId)) {
+            risk.tiendas_afectadas += 1;
+          }
+        });
+      }
+
+      const risksArray = Array.from(riskMap.values());
+      setRisks(risksArray);
+
+      // Calculate country metrics
+      const totalShops = countryShops.length;
+      const avgRisk = countryShops.reduce((sum, s) => sum + (s.totalRisk || 0), 0) / totalShops;
+
+      // Coherencia: riesgos totales/resueltos/pendientes como suma por tienda (mismo criterio que StoreDashboard)
+      const coverageValues = Object.values(nextCoverageById);
+      const sumTotalRisks = coverageValues.reduce((s, c) => s + c.totalRisks, 0);
+      const sumCoveredRisks = coverageValues.reduce((s, c) => s + c.coveredRisks, 0);
+      const sumUncoveredRisks = coverageValues.reduce((s, c) => s + c.uncoveredRisks, 0);
+      const coveragePct = sumTotalRisks > 0 ? (sumCoveredRisks / sumTotalRisks) * 100 : (stats?.coverage_percentage ?? 0);
+
+      const totalRisks = sumTotalRisks || risksArray.length;
+      const resolvedRisks = sumTotalRisks ? sumCoveredRisks : risksArray.filter((r) => r.estado === "Resuelto").length;
+      const pendingRisks = sumTotalRisks ? sumUncoveredRisks : (totalRisks - resolvedRisks);
+      const investmentShare = stats?.total_investment ?? 0;
+      const investment = Math.round(investmentShare * (totalShops / Math.max(stats?.total_shops ?? totalShops, 1)));
+      const roi = (Math.max(0, 1 - avgRisk) * 12).toFixed(1);
+      const improvedShops = sumTotalRisks
+        ? Object.values(nextCoverageById).filter((c) => c.coveredRisks > 0).length
+        : Math.round(totalShops * (coveragePct / 100));
+      const annualBenefit = investment * (parseFloat(roi) / 100);
+
+      setCountryData({
+        país: countryNameSpanish,
+        inversión: investment,
+        ROI: `${roi}%`,
+        riesgosTotales: totalRisks,
+        riesgosResueltos: resolvedRisks,
+        riesgosPendientes: pendingRisks,
+        pctRiesgosResueltos: totalRisks > 0 ? `${((resolvedRisks / totalRisks) * 100).toFixed(1)}%` : "0%",
+        tiendasTotales: totalShops,
+        tiendasMejoradas: improvedShops,
+        pctTiendasMejoradas: `${((improvedShops / totalShops) * 100).toFixed(1)}%`,
+        beneficioAnual: parseFloat(annualBenefit.toFixed(2)),
+        planNextYear: Math.round(investment * 0.4),
+        plan10y: Math.round(investment * 3.5),
+      });
+    } catch (err) {
+      console.error("Error loading country data:", err);
+      setError(err instanceof Error ? err.message : "Error cargando datos del país");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const percentRiesgos = data.riesgosTotales
-    ? data.riesgosResueltos / data.riesgosTotales
+  // Helper functions
+  const mapRiskType = (riskName: string): string => {
+    if (riskName.includes("nivel del mar") || riskName.includes("Inundación")) return "Climático";
+    if (riskName.includes("temperatura") || riskName.includes("calor")) return "Climático";
+    if (riskName.includes("precipitaciones") || riskName.includes("lluvia")) return "Climático";
+    if (riskName.includes("incendio")) return "Climático";
+    if (riskName.includes("tormenta") || riskName.includes("viento")) return "Climático";
+    return "Operacional";
+  };
+
+  const mapLevel = (value: string): "Alta" | "Media" | "Baja" => {
+    const v = value?.toLowerCase() || "";
+    if (v.includes("high") || v.includes("alto") || v.includes("alta")) return "Alta";
+    if (v.includes("low") || v.includes("bajo") || v.includes("baja")) return "Baja";
+    return "Media";
+  };
+
+  const euroM = (v: number) =>
+    new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 }).format(v);
+
+  // Loading state
+  if (loading) {
+    return (
+      <PageContainer title="Cargando...">
+        <div style={{ textAlign: "center", padding: "50px" }}>
+          <Spin size="large" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  // Error state
+  if (error || !countryData) {
+    return (
+      <PageContainer title="Dashboard de País">
+        <Alert
+          message="Error"
+          description={error || "No se pudo cargar la información del país"}
+          type="error"
+          showIcon
+        />
+        <Button
+          type="primary"
+          onClick={() => navigate("/dashboards")}
+          style={{ marginTop: 16 }}
+        >
+          Volver al Dashboard Global
+        </Button>
+      </PageContainer>
+    );
+  }
+
+  // Calculate chart data
+  const percentRiesgos = countryData.riesgosTotales > 0
+    ? countryData.riesgosResueltos / countryData.riesgosTotales
     : 0;
 
   const gaugeConfig = {
     percent: percentRiesgos,
     innerRadius: 0.9,
-    range: { color: ["#00ff88","#2b2b2b"] },
-    indicator: null,
+    range: { color: ["#00ff88", "#2b2b2b"] },
+    indicator: undefined,
     statistic: {
       content: {
         formatter: () => `${(percentRiesgos * 100).toFixed(1)}%`,
-        style: { fontSize: "18px", color: "#fff", fontWeight: 900 },
+        style: { fontSize: "18px", color: "#fff", fontWeight: 800 },
       },
     },
-  } as any;
+  };
 
-  const years = Array.from({ length: 10 }).map((_, i) => 2026 + i);
-  const yearlyCapex = data.plan10y / 10;
-  const yearlyBenefit = data.beneficioAnual;
+  const columnData = [
+    { tipo: "Resueltos", valor: countryData.riesgosResueltos },
+    { tipo: "Pendientes", valor: countryData.riesgosPendientes },
+  ];
 
-  const areaData = years.map((year, i) => ({
-    year: String(year),
-    "Capex (€M)": Math.round(
-      yearlyCapex * (1.2 - 0.2 * (i / (years.length - 1)))
-    ),
-    "Beneficios (€M)": Math.round(
-      yearlyBenefit * (0.7 + 0.3 * (i / (years.length - 1)))
-    ),
-  }));
+  const columnConfig = {
+    data: columnData,
+    xField: "tipo",
+    yField: "valor",
+    seriesField: "tipo",
+    color: ({ tipo }: any) => (tipo === "Resueltos" ? "#00ff88" : "#ff4d4f"),
+    label: {
+      position: "top" as const,
+      style: { fill: "#fff", fontSize: 14, fontWeight: 800 },
+    },
+  };
+
+  const riskTypeData = risks.reduce((acc, risk) => {
+    const existing = acc.find((item) => item.tipo === risk.tipo);
+    if (existing) {
+      existing.cantidad += 1;
+    } else {
+      acc.push({ tipo: risk.tipo, cantidad: 1 });
+    }
+    return acc;
+  }, [] as Array<{ tipo: string; cantidad: number }>);
+
+  const pieConfig = {
+    data: riskTypeData,
+    angleField: "cantidad",
+    colorField: "tipo",
+    radius: 0.9,
+    innerRadius: 0.6,
+    label: {
+      type: "spider" as const,
+      formatter: (datum: any) => `${datum.tipo}: ${datum.cantidad}`,
+      style: { fill: "#fff" },
+    },
+    legend: { position: "bottom" as const },
+  };
+
+  const years = Array.from({ length: 10 }, (_, i) => 2026 + i);
+  const areaData = years.flatMap((year, i) => {
+    const factor = 1 + i * 0.15;
+    return [
+      {
+        year: String(year),
+        tipo: "Inversión",
+        valor: Math.round((countryData.plan10y / 10) * (1 - i / years.length)),
+      },
+      {
+        year: String(year),
+        tipo: "Beneficio",
+        valor: Math.round(countryData.beneficioAnual * factor),
+      },
+    ];
+  });
 
   const areaConfig = {
     data: areaData,
     xField: "year",
-    yField: "Capex (€M)",
+    yField: "valor",
+    seriesField: "tipo",
+    color: ["#4B6BFD", "#00ff88"],
     smooth: true,
-    animation: { appear: { animation: "path-in", duration: 900 } },
     legend: { position: "top" as const },
-    tooltip: { shared: true },
-  } as any;
-
-  const tiendasNoMejoradas = data.tiendasTotales - data.tiendasMejoradas;
-  const pieConfig = {
-    data: [
-      { name: "Mejoradas", value: data.tiendasMejoradas },
-      { name: "Por mejorar", value: tiendasNoMejoradas },
-    ],
-    angleField: "value",
-    colorField: "name",
-    color: ["#00ff88", "#666"],
-    legend: { position: "bottom" as const },
-    label: { type: "inner", offset: "-30%", content: "{percentage}" },
-    interactions: [{ type: "element-active" }],
   };
 
-  const columnConfig = {
-    data: [
-      { tipo: "Resueltos", cantidad: data.riesgosResueltos },
-      { tipo: "Pendientes", cantidad: data.riesgosPendientes },
-    ],
-    xField: "tipo",
-    yField: "cantidad",
-    legend: { position: "bottom" as const },
-    color: ["#00ff88", "#ff4d4f"],
-    tooltip: { showMarkers: false },
-  } as any;
+  // Table columns
+  const riskColumns: any[] = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+      width: 60,
+    },
+    {
+      title: "Tipo",
+      dataIndex: "tipo",
+      key: "tipo",
+      width: 120,
+      render: (text: string) => (
+        <span style={{ fontWeight: 800, color: "#4B6BFD" }}>{text}</span>
+      ),
+    },
+    {
+      title: "Descripción",
+      dataIndex: "descripcion",
+      key: "descripcion",
+      ellipsis: true,
+    },
+    {
+      title: "Frecuencia",
+      dataIndex: "frecuencia",
+      key: "frecuencia",
+      width: 100,
+      render: (val: string) => {
+        const color =
+          val === "Alta" ? "#ff4d4f" : val === "Media" ? "#faad14" : "#52c41a";
+        return <span style={{ color, fontWeight: 800 }}>{val}</span>;
+      },
+    },
+    {
+      title: "Impacto",
+      dataIndex: "impacto",
+      key: "impacto",
+      width: 100,
+      render: (val: string) => {
+        const color =
+          val === "Alto" ? "#ff4d4f" : val === "Medio" ? "#faad14" : "#52c41a";
+        return <span style={{ color, fontWeight: 800 }}>{val}</span>;
+      },
+    },
+    {
+      title: "Estado",
+      dataIndex: "estado",
+      key: "estado",
+      width: 100,
+      render: (val: string) => {
+        const color = val === "Resuelto" ? "#00ff88" : "#ff4d4f";
+        return <span style={{ color, fontWeight: 800 }}>{val}</span>;
+      },
+    },
+    {
+      title: "Tiendas Afectadas",
+      dataIndex: "tiendas_afectadas",
+      key: "tiendas_afectadas",
+      width: 140,
+      sorter: (a: any, b: any) => a.tiendas_afectadas - b.tiendas_afectadas,
+    },
+  ];
 
-  const tableData = [
-    { key: "1", metrica: "Inversión total", valor: `${data.inversión}M€` },
-    { key: "2", metrica: "ROI", valor: data.ROI },
-    { key: "3", metrica: "Beneficio anual", valor: `${data.beneficioAnual}M€` },
+  const shopColumns: any[] = [
     {
-      key: "4",
-      metrica: "Payback",
-      valor: `${(data.inversión / data.beneficioAnual).toFixed(1)} años`,
+      title: "Prioridad",
+      key: "priority",
+      width: 90,
+      render: (_: any, __: any, index: number) => (
+        <span style={{ fontWeight: 900, color: "#fff" }}>#{index + 1}</span>
+      ),
     },
-    { key: "5", metrica: "Tiendas totales", valor: data.tiendasTotales },
     {
-      key: "6",
-      metrica: "Tiendas mejoradas",
-      valor: `${data.tiendasMejoradas} (${data.pctTiendasMejoradas})`,
+      title: "Tienda",
+      dataIndex: "location",
+      key: "location",
+      ellipsis: true,
+      render: (text: string) => (
+        <span style={{ fontWeight: 800, color: "#00ff88" }}>{text}</span>
+      ),
     },
-    { key: "7", metrica: "Riesgos totales", valor: data.riesgosTotales },
     {
-      key: "8",
-      metrica: "Riesgos resueltos",
-      valor: `${data.riesgosResueltos} (${data.pctRiesgosResueltos})`,
+      title: "Riesgo",
+      dataIndex: "totalRisk",
+      key: "totalRisk",
+      width: 110,
+      defaultSortOrder: "descend" as const,
+      sorter: (a: any, b: any) => (a.totalRisk || 0) - (b.totalRisk || 0),
+      render: (val: number) => {
+        const v = Number(val || 0);
+        const color = v >= 0.7 ? "#ff4d4f" : v >= 0.4 ? "#faad14" : "#52c41a";
+        return <span style={{ color, fontWeight: 900 }}>{v.toFixed(2)}</span>;
+      },
     },
-    { key: "9", metrica: "Plan próximo año", valor: `${data.planNextYear}M€` },
-    { key: "10", metrica: "Plan 10 años", valor: `${data.plan10y}M€` },
+    {
+      title: "Inversión sugerida",
+      key: "suggestedInvestment",
+      width: 150,
+      sorter: (a: any, b: any) => {
+        const av = shopCoverageById[a.id]?.suggestedInvestment ?? 0;
+        const bv = shopCoverageById[b.id]?.suggestedInvestment ?? 0;
+        return av - bv;
+      },
+      render: (_: any, record: ShopWithCluster) => {
+        const v = shopCoverageById[record.id]?.suggestedInvestment;
+        return (
+          <span style={{ color: "#fff", fontWeight: 900 }}>
+            {typeof v === "number" ? `${Math.round(v).toLocaleString("es-ES")} €` : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Riesgos pendientes",
+      key: "uncoveredRisks",
+      width: 140,
+      sorter: (a: any, b: any) => {
+        const av = shopCoverageById[a.id]?.uncoveredRisks ?? 0;
+        const bv = shopCoverageById[b.id]?.uncoveredRisks ?? 0;
+        return av - bv;
+      },
+      render: (_: any, record: ShopWithCluster) => {
+        const v = shopCoverageById[record.id]?.uncoveredRisks;
+        return <span style={{ color: "#fff", fontWeight: 800 }}>{typeof v === "number" ? v : "—"}</span>;
+      },
+    },
+    {
+      title: "Cluster",
+      dataIndex: "cluster_id",
+      key: "cluster_id",
+      width: 90,
+      render: (val: number) => <span style={{ color: "#fff" }}>{val}</span>,
+    },
+    {
+      title: "Ver",
+      key: "actions",
+      width: 90,
+      valueType: "option" as const,
+      render: (_: any, record: ShopWithCluster) => (
+        <Button type="primary" size="small" onClick={() => navigate(`/store/${record.id}`)}>
+          Ver
+        </Button>
+      ),
+    },
   ];
 
   return (
-    <div
-      style={{
-        minHeight: "100%",
-        padding: 8,
-        borderRadius: 18,
-        background:
-          "radial-gradient(900px 520px at 15% 5%, rgba(0,255,136,0.10), transparent 60%)," +
-          "radial-gradient(820px 520px at 85% 25%, rgba(75,107,253,0.12), transparent 55%)",
-      }}
+    <PageContainer
+      title={`Dashboard: ${countryData.país}`}
+      extra={[
+        <Button key="back" onClick={() => navigate("/dashboards")}>
+          ← Volver
+        </Button>,
+        <Button
+          key="map"
+          type="primary"
+          onClick={() => navigate(`/country/${slug}`)}
+        >
+          Ver Mapa
+        </Button>,
+      ]}
     >
-      <PageContainer
-        header={{
-          title: `📊 ${data.país} — Dashboard`,
-          extra: [
-            <button
-              key="map"
-              onClick={() => navigate(`/country/${slug}`)}
-              style={softButton}
-            >
-              Ver Mapa →
-            </button>,
-            <button
-              key="all"
-              onClick={() => navigate("/dashboards")}
-              style={subtleBtn}
-            >
-              Todos los países
-            </button>,
-          ],
-          style: {
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            marginBottom: 12,
-          },
-        }}
-        style={{ background: "transparent" }}
-      >
-        <ProCard direction="column" gutter={[12, 12]} ghost>
-          {/* KPIs + Gauge */}
-          <ProCard split="vertical" ghost>
-            <ProCard colSpan="70%" gutter={12} wrap ghost>
-              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
-                <StatisticCard
-                  statistic={{ title: "Inversión (€M)", value: data.inversión, precision: 0 }}
-                />
-              </ProCard>
-
-              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
-                <StatisticCard
-                  statistic={{
-                    title: "ROI",
-                    value: parseFloat(data.ROI),
-                    precision: 1,
-                    suffix: "%",
-                  }}
-                />
-              </ProCard>
-
-              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
-                <StatisticCard
-                  statistic={{
-                    title: "Tiendas mejoradas",
-                    value: parseFloat(data.pctTiendasMejoradas),
-                    precision: 1,
-                    suffix: "%",
-                  }}
-                />
-              </ProCard>
-
-              <ProCard bordered style={cardStyle} bodyStyle={cardBody}>
-                <StatisticCard
-                  statistic={{
-                    title: "Payback",
-                    value: (data.inversión / data.beneficioAnual).toFixed(1),
-                    suffix: "años",
-                  }}
-                />
-              </ProCard>
-            </ProCard>
-
-            <ProCard bordered colSpan="30%" style={cardStyle} bodyStyle={cardBody}>
-              <div style={{ display: "grid", placeItems: "center" }}>
-                <div style={{ width: 190, height: 190 }}>
-                  <Gauge {...gaugeConfig} />
-                </div>
-
-                <div style={{ textAlign: "center", marginTop: 6, opacity: 0.85, fontSize: 12 }}>
-                  {data.riesgosResueltos} / {data.riesgosTotales} riesgos resueltos
-                </div>
-              </div>
-            </ProCard>
-          </ProCard>
-
-          {/* Charts */}
-          <ProCard split="vertical" ghost style={{ minHeight: 420 }}>
-            <ProCard
-              colSpan="50%"
-              bordered
-              title="Capex vs Beneficios (2026–2035)"
-              size="small"
-              style={cardStyle}
-              bodyStyle={{ padding: 14, height: "100%" }}
-            >
-              <Area {...areaConfig} />
-            </ProCard>
-
-            <ProCard
-              colSpan="50%"
-              ghost
-              style={{ display: "flex", flexDirection: "column", gap: 12 }}
-            >
-              <ProCard
-                bordered
-                title="Estado de riesgos"
-                size="small"
-                style={{ ...cardStyle, flex: 1 }}
-                bodyStyle={{ padding: 14, height: "100%" }}
-              >
-                <Column {...columnConfig} />
-              </ProCard>
-
-              <ProCard
-                bordered
-                title="Tiendas mejoradas"
-                size="small"
-                style={{ ...cardStyle, flex: 1 }}
-                bodyStyle={{ padding: 14, height: "100%" }}
-              >
-                <Pie {...pieConfig} />
-              </ProCard>
-            </ProCard>
-          </ProCard>
-
-          {/* Tabla métricas */}
-          <ProCard
-            bordered
-            title="Métricas detalladas"
-            size="small"
-            style={cardStyle}
-            bodyStyle={{ padding: 0 }}
-          >
-            <ProTable<{ key: string; metrica: string; valor: string | number }>
-              rowKey="key"
-              dataSource={tableData}
-              search={false}
-              options={false}
-              pagination={false}
-              size="small"
-              columns={[
-                { title: "Métrica", dataIndex: "metrica", width: "60%" },
-                { title: "Valor", dataIndex: "valor", width: "40%", align: "right" as const },
-              ]}
-              toolBarRender={false}
-            />
-          </ProCard>
-
-          {/* Prioridad tiendas */}
-          <ProCard
-            bordered
-            title="📌 Prioridad de inversión — Tiendas"
-            size="small"
-            style={cardStyle}
-            bodyStyle={{ padding: 0 }}
-          >
-            <ProTable<any>
-              rowKey="id"
-              loading={loadingStores}
-              dataSource={stores}
-              search={false}
-              options={false}
-              pagination={{ pageSize: 6 }}
-              size="small"
-              columns={[
-                {
-                  title: "#",
-                  render: (_: any, __: any, index: number) => index + 1,
-                  width: 60,
-                  align: "center" as const,
-                },
-                {
-                  title: "Tienda",
-                  dataIndex: "name",
-                  render: (_text: any, record: any) => (
-                    <div>
-                      <div style={{ fontWeight: 900 }}>{record.name}</div>
-                      <div style={{ fontSize: 12, opacity: 0.6 }}>ID: {record.id}</div>
-                    </div>
-                  ),
-                },
-                {
-                  title: "Urgencia",
-                  dataIndex: "priorityScore",
-                  width: 190,
-                  render: (_: any, record: any) => (
-                    <div style={{ width: 160 }}>
-                      <Progress
-                        percent={record.priorityScore}
-                        showInfo={false}
-                        strokeColor={scoreColor(record.priorityScore)}
-                        trailColor="rgba(255,255,255,0.10)"
-                      />
-                      <div style={{ fontSize: 12, textAlign: "right", marginTop: 4, opacity: 0.75 }}>
-                        {record.priorityScore}/100
-                      </div>
-                    </div>
-                  ),
-                },
-                {
-                  title: "ROI actual",
-                  dataIndex: "roi",
-                  width: 110,
-                  render: (_: any, record: any) => (
-                    <span style={{ fontWeight: 800, opacity: 0.9 }}>{record.roi}%</span>
-                  ),
-                },
-                {
-                  title: "Riesgo",
-                  dataIndex: "riskLevel",
-                  width: 110,
-                  render: (_: any, r: any) => (
-                    <span
-                      style={{
-                        fontWeight: 900,
-                        color:
-                          r.riskLevel === "Alto"
-                            ? "#ff4d4f"
-                            : r.riskLevel === "Medio"
-                            ? "#faad14"
-                            : "#52c41a",
-                      }}
-                    >
-                      {r.riskLevel}
-                    </span>
-                  ),
-                },
-                {
-                  title: "Inversión necesaria",
-                  dataIndex: "investmentNeeded",
-                  align: "right" as const,
-                  width: 160,
-                  render: (_: any, r: any) => (
-                    <span style={{ fontWeight: 900 }}>{r.investmentNeeded}</span>
-                  ),
-                },
-                {
-                  title: "",
-                  valueType: "option",
-                  width: 120,
-                  render: (_: any, record: any) => [
-                    <Button
-                      key="view"
-                      type="primary"
-                      size="small"
-                      onClick={() => navigate(`/store/${record.id}`)}
-                      style={{ borderRadius: 10, fontWeight: 900 }}
-                    >
-                      Analizar
-                    </Button>,
-                  ],
-                },
-              ]}
-              toolBarRender={false}
-            />
-          </ProCard>
-
-          {/* Riesgos */}
-          <ProCard
-            bordered
-            title="⚠️ Análisis de Riesgos"
-            size="small"
-            style={cardStyle}
-            bodyStyle={{ padding: 12 }}
-          >
-            <ProCard split="vertical" ghost style={{ gap: 12, alignItems: "stretch" }}>
-              <ProCard
-                colSpan="50%"
-                bordered
-                title="Distribución por tipo"
-                size="small"
-                style={cardStyle}
-                bodyStyle={{ padding: 14, display: "grid", placeItems: "center" }}
-              >
-                <Pie {...riskTypeConfig} />
-              </ProCard>
-
-              <ProCard colSpan="50%" ghost style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <ProCard
-                  bordered
-                  title="Riesgos más frecuentes"
-                  size="small"
-                  style={cardStyle}
-                  bodyStyle={{ padding: 0 }}
-                >
-                  <ProTable<(typeof mostFrequentRisks)[0]>
-                    rowKey="id"
-                    dataSource={mostFrequentRisks}
-                    search={false}
-                    options={false}
-                    pagination={false}
-                    size="small"
-                    columns={[
-                      { title: "Tipo", dataIndex: "tipo", width: "30%" },
-                      { title: "Descripción", dataIndex: "descripcion", width: "55%" },
-                      {
-                        title: "Frecuencia",
-                        dataIndex: "frecuencia",
-                        width: "15%",
-                        render: (_: any, r: any) => (
-                          <span style={{ fontWeight: 900, color: r.frecuencia === "Alta" ? "#ff4d4f" : r.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
-                            {r.frecuencia}
-                          </span>
-                        ),
-                      },
-                    ]}
-                    toolBarRender={false}
-                  />
-                </ProCard>
-
-                <ProCard
-                  bordered
-                  title="Riesgos más expuestos"
-                  size="small"
-                  style={cardStyle}
-                  bodyStyle={{ padding: 0 }}
-                >
-                  <ProTable<(typeof mostExposedRisks)[0]>
-                    rowKey="id"
-                    dataSource={mostExposedRisks}
-                    search={false}
-                    options={false}
-                    pagination={false}
-                    size="small"
-                    columns={[
-                      { title: "Tipo", dataIndex: "tipo", width: "28%" },
-                      { title: "Descripción", dataIndex: "descripcion", width: "52%" },
-                      {
-                        title: "Tiendas",
-                        dataIndex: "tiendas_afectadas",
-                        width: "10%",
-                        align: "right" as const,
-                      },
-                      {
-                        title: "Impacto",
-                        dataIndex: "impacto",
-                        width: "10%",
-                        render: (_: any, r: any) => (
-                          <span style={{ fontWeight: 900, color: r.impacto === "Alto" ? "#ff4d4f" : r.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
-                            {r.impacto}
-                          </span>
-                        ),
-                      },
-                    ]}
-                    toolBarRender={false}
-                  />
-                </ProCard>
-              </ProCard>
-            </ProCard>
-          </ProCard>
-
-          {/* Tabla completa riesgos */}
-          <ProCard
-            bordered
-            title="📋 Detalle completo de riesgos"
-            size="small"
-            style={cardStyle}
-            bodyStyle={{ padding: 0 }}
-          >
-            <ProTable<(typeof countryRisks)[0]>
-              rowKey="id"
-              dataSource={countryRisks}
-              search={false}
-              options={false}
-              pagination={{ pageSize: 10 }}
-              size="small"
-              scroll={{ x: true }}
-              columns={[
-                {
-                  title: "Tipo",
-                  dataIndex: "tipo",
-                  width: 140,
-                  sorter: (a, b) => a.tipo.localeCompare(b.tipo),
-                },
-                { title: "Descripción", dataIndex: "descripcion", width: 320 },
-                {
-                  title: "Frecuencia",
-                  dataIndex: "frecuencia",
-                  width: 120,
-                  sorter: (a, b) => ({ Alta: 1, Media: 2, Baja: 3 }[a.frecuencia] - ({ Alta: 1, Media: 2, Baja: 3 }[b.frecuencia])),
-                  render: (_: any, r: any) => (
-                    <span style={{ fontWeight: 900, color: r.frecuencia === "Alta" ? "#ff4d4f" : r.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>
-                      {r.frecuencia}
-                    </span>
-                  ),
-                },
-                {
-                  title: "Impacto",
-                  dataIndex: "impacto",
-                  width: 120,
-                  sorter: (a, b) => ({ Alto: 1, Medio: 2, Bajo: 3 }[a.impacto] - ({ Alto: 1, Medio: 2, Bajo: 3 }[b.impacto])),
-                  render: (_: any, r: any) => (
-                    <span style={{ fontWeight: 900, color: r.impacto === "Alto" ? "#ff4d4f" : r.impacto === "Medio" ? "#faad14" : "#52c41a" }}>
-                      {r.impacto}
-                    </span>
-                  ),
-                },
-                {
-                  title: "Tiendas afectadas",
-                  dataIndex: "tiendas_afectadas",
-                  width: 160,
-                  align: "right" as const,
-                  sorter: (a, b) => (a.tiendas_afectadas || 0) - (b.tiendas_afectadas || 0),
-                },
-                {
-                  title: "Estado",
-                  dataIndex: "estado",
-                  width: 120,
-                  sorter: (a, b) => a.estado.localeCompare(b.estado),
-                  render: (_: any, r: any) => (
-                    <span style={{ fontWeight: 900, color: r.estado === "Resuelto" ? "#00ff88" : "#ff4d4f" }}>
-                      {r.estado}
-                    </span>
-                  ),
-                },
-              ]}
-              toolBarRender={false}
-            />
-          </ProCard>
+      <ProCard gutter={[16, 16]} wrap>
+        {/* Summary Cards */}
+        <ProCard colSpan={6} bordered style={cardStyle}>
+          <StatisticCard
+            statistic={{
+              title: "Inversión Total",
+              value: `${euroM(countryData.inversión)} M€`,
+              valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
+            }}
+          />
         </ProCard>
-      </PageContainer>
-    </div>
+
+        <ProCard colSpan={6} bordered style={cardStyle}>
+          <StatisticCard
+            statistic={{
+              title: "ROI Esperado",
+              value: countryData.ROI,
+              valueStyle: { color: "#4B6BFD", fontSize: 24, fontWeight: 900 },
+            }}
+          />
+        </ProCard>
+
+        <ProCard colSpan={6} bordered style={cardStyle}>
+          <StatisticCard
+            statistic={{
+              title: "Tiendas Totales",
+              value: countryData.tiendasTotales,
+              valueStyle: { color: "#fff", fontSize: 24, fontWeight: 900 },
+            }}
+          />
+        </ProCard>
+
+        <ProCard colSpan={6} bordered style={cardStyle}>
+          <StatisticCard
+            statistic={{
+              title: "Beneficio Anual",
+              value: `${countryData.beneficioAnual.toFixed(1)} M€`,
+              valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
+            }}
+          />
+        </ProCard>
+
+        {/* Progress Cards */}
+        <ProCard colSpan={12} title="Progreso de Riesgos" bordered style={cardStyle}>
+          <div style={{ padding: 16 }}>
+            <Progress
+              percent={parseFloat(countryData.pctRiesgosResueltos)}
+              strokeColor="#00ff88"
+              trailColor="#2b2b2b"
+              format={(percent) => `${percent?.toFixed(1)}%`}
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#00ff88", fontWeight: 800 }}>
+                Resueltos: {countryData.riesgosResueltos}
+              </span>
+              <span style={{ color: "#ff4d4f", fontWeight: 800 }}>
+                Pendientes: {countryData.riesgosPendientes}
+              </span>
+            </div>
+          </div>
+        </ProCard>
+
+        <ProCard colSpan={12} title="Tiendas Mejoradas" bordered style={cardStyle}>
+          <div style={{ padding: 16 }}>
+            <Progress
+              percent={parseFloat(countryData.pctTiendasMejoradas)}
+              strokeColor="#4B6BFD"
+              trailColor="#2b2b2b"
+              format={(percent) => `${percent?.toFixed(1)}%`}
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "#4B6BFD", fontWeight: 800 }}>
+                Mejoradas: {countryData.tiendasMejoradas}
+              </span>
+              <span style={{ color: "#999", fontWeight: 800 }}>
+                Total: {countryData.tiendasTotales}
+              </span>
+            </div>
+          </div>
+        </ProCard>
+
+        {/* Charts */}
+        <ProCard colSpan={8} title="% Riesgos Resueltos" bordered style={cardStyle}>
+          <div style={{ height: 240 }}>
+            <Gauge {...gaugeConfig} />
+          </div>
+        </ProCard>
+
+        <ProCard colSpan={8} title="Riesgos por Estado" bordered style={cardStyle}>
+          <div style={{ height: 240 }}>
+            <Column {...columnConfig} />
+          </div>
+        </ProCard>
+
+        <ProCard colSpan={8} title="Riesgos por Tipo" bordered style={cardStyle}>
+          <div style={{ height: 240 }}>
+            <Pie {...pieConfig} />
+          </div>
+        </ProCard>
+
+        {/* Area Chart */}
+        <ProCard colSpan={24} title="Proyección 10 años" bordered style={cardStyle}>
+          <div style={{ height: 300 }}>
+            <Area {...areaConfig} />
+          </div>
+        </ProCard>
+
+        {/* Risks Table */}
+        <ProCard colSpan={24} title="Detalle de Riesgos" bordered style={cardStyle}>
+          <ProTable<RiskData>
+            columns={riskColumns}
+            dataSource={risks}
+            search={false}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total: ${total} riesgos`,
+            }}
+            rowKey="id"
+            style={{ background: "transparent" }}
+          />
+        </ProCard>
+
+        {/* Shops Table */}
+        <ProCard
+          colSpan={24}
+          title="Tiendas del país (prioridad de inversión por riesgo)"
+          bordered
+          style={cardStyle}
+        >
+          <ProTable<ShopWithCluster>
+            columns={shopColumns}
+            dataSource={shops}
+            search={false}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total: ${total} tiendas`,
+            }}
+            rowKey="id"
+            onRow={(record) => ({
+              onClick: () => navigate(`/store/${record.id}`),
+              style: { cursor: "pointer" },
+            })}
+            style={{ background: "transparent" }}
+          />
+        </ProCard>
+      </ProCard>
+    </PageContainer>
   );
 }
+
+const cardStyle = {
+  borderRadius: 16,
+  background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))",
+  border: "1px solid rgba(255,255,255,0.10)",
+};

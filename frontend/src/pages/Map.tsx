@@ -14,13 +14,16 @@ import {
   PIN_PATH_D,
   getMarkerColor,
 } from "../utils/mapIcons";
-import { fetchClusters } from "../services/csvService";
+import { useStores } from "../context/StoresContext";
 import type { MapTooltip } from "../types";
 
 export default function Map() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [tip, setTip] = useState<MapTooltip>(null);
+  
+  // Use stores context instead of fetching CSV
+  const { clusters, loading: loadingStores } = useStores();
 
   // Estado del toggle para mostrar radios de clusters
   const [showRadius, setShowRadius] = useState(false);
@@ -88,16 +91,11 @@ export default function Map() {
     };
     svg.addEventListener("click", onDebugClick);
 
-    // ========== 4) CARGAR CSV (UTM) Y PINTAR ==========
+    // ========== 4) PINTAR CLUSTERS (desde contexto) ==========
+    if (loadingStores) return;
+    
     (async () => {
-      const rows = await fetchClusters();
-
-      const parsed = rows
-        .map((r) => ({
-          ...r,
-          N: parseFloat(r.utm_north),
-          E: parseFloat(r.utm_east),
-        }))
+      const parsed = clusters
         .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E));
 
       if (!parsed.length) {

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useStores, type ParsedStore } from "../context/StoresContext";
 
 /* ===== Utils texto ===== */
 const normalize = (s: string) =>
@@ -21,13 +22,22 @@ const COUNTRY_NAMES: Record<string, string[]> = {
   Germany: ["Germany", "Alemania", "germany", "alemania"],
   France: ["France", "Francia", "france", "francia"],
   Italy: ["Italy", "Italia", "italy", "italia"],
-  "United Kingdom": [
-    "United Kingdom",
-    "Reino Unido",
-    "united kingdom",
-    "reino unido",
-  ],
+  "United Kingdom": ["United Kingdom", "Reino Unido", "united kingdom", "reino unido"],
   Portugal: ["Portugal", "portugal"],
+  Netherlands: ["Netherlands", "Países Bajos", "netherlands", "paises bajos", "países bajos"],
+  Belgium: ["Belgium", "Bélgica", "belgium", "belgica", "bélgica"],
+  Switzerland: ["Switzerland", "Suiza", "switzerland", "suiza"],
+  Austria: ["Austria", "austria"],
+  Poland: ["Poland", "Polonia", "poland", "polonia"],
+  Greece: ["Greece", "Grecia", "greece", "grecia"],
+  Romania: ["Romania", "Rumanía", "romania", "rumania", "rumanía"],
+  Croatia: ["Croatia", "Croacia", "croatia", "croacia"],
+  Turkey: ["Turkey", "Turquía", "turkey", "turquia", "turquía"],
+  Ukraine: ["Ukraine", "Ucrania", "ukraine", "ucrania"],
+  Finland: ["Finland", "Finlandia", "finland", "finlandia"],
+  Norway: ["Norway", "Noruega", "norway", "noruega"],
+  Denmark: ["Denmark", "Dinamarca", "denmark", "dinamarca"],
+  Ireland: ["Ireland", "Irlanda", "ireland", "irlanda"],
 };
 
 // Función para comparar países ignorando idioma
@@ -97,51 +107,6 @@ const ALIAS: Record<string, string> = {
 // multiplica DOMMatrix * punto → DOMPoint
 const transformPoint = (m: DOMMatrix, p: DOMPoint) =>
   new DOMPoint(p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f);
-
-/* ===== Types ===== */
-
-type CsvRow = {
-  id: string;
-  name: string;
-  country: string;
-  utm_north: string;
-  utm_east: string;
-};
-
-type StoreDetailRow = {
-  id: string;
-  inversion: string; // viene como string en el CSV
-};
-
-// CSV simple genérico
-async function fetchCsvGeneric<T = any>(url: string): Promise<T[]> {
-  const txt = await fetch(url).then((r) => r.text());
-  const [header, ...lines] = txt.trim().split(/\r?\n/);
-  const cols = header.split(",").map((s) => s.trim());
-
-  return lines
-    .filter((l) => l.trim().length > 0)
-    .map((line) => {
-      const cells = line.split(",").map((s) => s.trim());
-      const row: any = {};
-      cols.forEach((c, i) => (row[c] = cells[i]));
-      return row as T;
-    });
-}
-
-async function fetchCSV(url: string): Promise<CsvRow[]> {
-  const txt = await fetch(url).then((r) => r.text());
-  const [header, ...lines] = txt.trim().split(/\r?\n/);
-  const cols = header.split(",").map((s) => s.trim());
-  return lines
-    .filter((l) => l.trim().length > 0)
-    .map((line) => {
-      const cells = line.split(",").map((s) => s.trim());
-      const row: any = {};
-      cols.forEach((c, i) => (row[c] = cells[i]));
-      return row as CsvRow;
-    });
-}
 
 /* ===== Constantes markers (copiadas de Map.tsx) ===== */
 
@@ -276,14 +241,15 @@ export default function CountryMap() {
   const navigate = useNavigate();
   const { slug = "" } = useParams<{ slug: string }>();
   const { state } = useLocation() as { state?: { name?: string } };
+  
+  // Get data from context
+  const storesCtx = useStores();
 
   const [error, setError] = useState<string | null>(null);
   const [refitTick, setRefitTick] = useState(0);
 
   // Lista de tiendas parseadas disponible para el sidebar
-  const [storesList, setStoresList] = useState<
-    Array<CsvRow & { N: number; E: number }>
-  >([]);
+  const [storesList, setStoresList] = useState<ParsedStore[]>([]);
 
   // inversión por tienda (para orden y display)
   const [invByIdState, setInvByIdState] = useState<Record<string, number>>({});
@@ -397,21 +363,22 @@ export default function CountryMap() {
 
     (async () => {
       try {
-        const [clusterRows, storeRows, storeDetails] = await Promise.all([
-          fetchCSV("/data/Cluster_rows_utm_simple.csv"),
-          fetchCSV("/data/Store_rows_utm_simple.csv"),
-          fetchCsvGeneric<StoreDetailRow>("/data/Store_details.csv"),
-        ]);
+        // Use data from context instead of CSV
+        const { stores, clusters, storeDetails } = storesCtx;
 
-        const parsedClusters = clusterRows
-          .map((r) => ({ ...r, N: parseFloat(r.utm_north), E: parseFloat(r.utm_east) }))
-          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
-          .filter((r) => countriesMatch(r.country || "", targetCountryName));
+        // Filter stores by country field from database
+        const parsedStores = stores.filter((r) => {
+          if (!r.country) return false;
+          return countriesMatch(r.country, targetCountryName);
+        });
 
-        const parsedStores = storeRows
-          .map((r) => ({ ...r, N: parseFloat(r.utm_north), E: parseFloat(r.utm_east) }))
-          .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E))
-          .filter((r) => countriesMatch(r.country || "", targetCountryName));
+        // Get unique cluster IDs from filtered stores
+        const countryClusterIds = new Set(parsedStores.map((s) => s.cluster_id).filter(Boolean));
+        
+        // Filter clusters that belong to this country (based on stores)
+        const parsedClusters = clusters.filter((c) => 
+          countryClusterIds.has(Number(c.id))
+        );
 
         setStoresList(parsedStores);
 
@@ -423,21 +390,26 @@ export default function CountryMap() {
         });
         setInvByIdState(Object.fromEntries(invById.entries()));
 
-        // Inversiones del país (solo tiendas aquí)
-        const invValues = parsedStores
-          .map((s) => invById.get(String(s.id)))
-          .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+        // Riesgo del país (solo tiendas aquí)
+        const riskById = new Map<string, number>();
+        parsedStores.forEach((s) => {
+          const r = typeof s.totalRisk === "number" && !Number.isNaN(s.totalRisk) ? s.totalRisk : 0;
+          riskById.set(String(s.id), r);
+        });
 
-        const maxInv = invValues.length ? Math.max(...invValues) : 0;
-        const minInv = invValues.length ? Math.min(...invValues) : 0;
+        const riskValues = Array.from(riskById.values()).filter((v) => typeof v === "number" && !Number.isNaN(v));
+        const maxRisk = riskValues.length ? Math.max(...riskValues) : 1;
+        const minRisk = riskValues.length ? Math.min(...riskValues) : 0;
 
-        // más inversión => más rojo
+        // más riesgo => más rojo, menos riesgo => más verde
         const colorForStore = (storeId: string) => {
-          const inv = invById.get(String(storeId));
-          if (inv == null || maxInv === minInv) return "#ff8c00"; // fallback naranja
-          // 0 = maxInv (rojo), 1 = minInv (verde)
-          const t = (maxInv - inv) / (maxInv - minInv);
-          return redToGreen(t);
+          const risk = riskById.get(String(storeId));
+          if (risk == null) return "#ff8c00"; // fallback naranja
+
+          // Normalizar por rango si hay variación, y si no, asumir [0..1]
+          const normalized = maxRisk !== minRisk ? (risk - minRisk) / (maxRisk - minRisk) : clamp01(risk);
+          // redToGreen(t): t=0 rojo, t=1 verde; para riesgo alto queremos rojo
+          return redToGreen(1 - clamp01(normalized));
         };
 
         const vb =
@@ -801,9 +773,9 @@ export default function CountryMap() {
       return arr;
     }
 
-    // name_asc
+    // name_asc - ordenar por nombre de tienda (location)
     arr.sort((a, b) =>
-      (a.name || "").localeCompare(b.name || "", "es", { sensitivity: "base" })
+      (a.location || a.name || "").localeCompare(b.location || b.name || "", "es", { sensitivity: "base" })
     );
     return arr;
   }, [storesList, sortBy, invByIdState]);
@@ -936,12 +908,12 @@ export default function CountryMap() {
                         c?.__focusOnStore?.(String(s.id));
                       }}
                     >
-                      <div style={{ fontSize: 14 }}>{s.name}</div>
+                      <div style={{ fontSize: 14 }}>{s.location || s.name}</div>
                       <div style={{ fontSize: 11, color: "#aaa" }}>
                         Inversión: {invText}
                       </div>
-                      <div style={{ fontSize: 11, color: "#aaa" }}>
-                        {`${Math.round(s.N)} , ${Math.round(s.E)}`}
+                      <div style={{ fontSize: 11, color: "#666" }}>
+                        Cluster: {s.name}
                       </div>
                     </div>
 

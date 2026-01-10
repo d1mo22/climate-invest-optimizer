@@ -268,7 +268,7 @@ func (r *ClusterRepository) GetWithRisks(ctx context.Context, id int64) (*models
 
 	// Obtener riesgos del cluster
 	query := `
-		SELECT r.id, r.name, r.svg, cr.exposure, cr.sensitivity, cr.consequence, cr.probability
+		SELECT r.id, r.name, cr.exposure, cr.sensitivity, cr.consequence, cr.probability
 		FROM "Risk" r
 		JOIN "Cluster_risk" cr ON r.id = cr.risk_id
 		WHERE cr.cluster_id = $1
@@ -281,11 +281,9 @@ func (r *ClusterRepository) GetWithRisks(ctx context.Context, id int64) (*models
 
 	for rows.Next() {
 		var rd models.RiskDetail
-		var svg sql.NullString
-		if err := rows.Scan(&rd.ID, &rd.Name, &svg, &rd.Exposure, &rd.Sensitivity, &rd.Consequence, &rd.Probability); err != nil {
+		if err := rows.Scan(&rd.ID, &rd.Name, &rd.Exposure, &rd.Sensitivity, &rd.Consequence, &rd.Probability); err != nil {
 			return nil, fmt.Errorf("failed to scan risk detail: %w", err)
 		}
-		rd.SVG = svg.String
 		rd.RiskScore = calculateRiskScore(rd)
 		result.Risks = append(result.Risks, rd)
 	}
@@ -305,46 +303,42 @@ func NewRiskRepository(db *sql.DB) *RiskRepository {
 
 // Create inserta un nuevo riesgo
 func (r *RiskRepository) Create(ctx context.Context, risk *models.Risk) error {
-	query := `INSERT INTO "Risk" (name, svg, id) VALUES ($1, $2, $3)`
-	_, err := r.db.ExecContext(ctx, query, risk.Name, risk.SVG, risk.ID)
+	query := `INSERT INTO "Risk" (name, id) VALUES ($1, $2)`
+	_, err := r.db.ExecContext(ctx, query, risk.Name, risk.ID)
 	return err
 }
 
 // GetByID obtiene un riesgo por ID
 func (r *RiskRepository) GetByID(ctx context.Context, id int64) (*models.Risk, error) {
-	query := `SELECT id, name, svg FROM "Risk" WHERE id = $1`
+	query := `SELECT id, name FROM "Risk" WHERE id = $1`
 	risk := &models.Risk{}
-	var svg sql.NullString
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&risk.ID, &risk.Name, &svg)
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&risk.ID, &risk.Name)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	risk.SVG = svg.String
 	return risk, nil
 }
 
 // GetByName obtiene un riesgo por nombre
 func (r *RiskRepository) GetByName(ctx context.Context, name string) (*models.Risk, error) {
-	query := `SELECT id, name, svg FROM "Risk" WHERE name = $1`
+	query := `SELECT id, name FROM "Risk" WHERE name = $1`
 	risk := &models.Risk{}
-	var svg sql.NullString
-	err := r.db.QueryRowContext(ctx, query, name).Scan(&risk.ID, &risk.Name, &svg)
+	err := r.db.QueryRowContext(ctx, query, name).Scan(&risk.ID, &risk.Name)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	risk.SVG = svg.String
 	return risk, nil
 }
 
 // List obtiene todos los riesgos
 func (r *RiskRepository) List(ctx context.Context) ([]models.Risk, error) {
-	query := `SELECT id, name, svg FROM "Risk" ORDER BY name`
+	query := `SELECT id, name FROM "Risk" ORDER BY name`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -354,11 +348,9 @@ func (r *RiskRepository) List(ctx context.Context) ([]models.Risk, error) {
 	var risks []models.Risk
 	for rows.Next() {
 		var risk models.Risk
-		var svg sql.NullString
-		if err := rows.Scan(&risk.ID, &risk.Name, &svg); err != nil {
+		if err := rows.Scan(&risk.ID, &risk.Name); err != nil {
 			return nil, err
 		}
-		risk.SVG = svg.String
 		risks = append(risks, risk)
 	}
 	return risks, nil
@@ -367,7 +359,7 @@ func (r *RiskRepository) List(ctx context.Context) ([]models.Risk, error) {
 // GetByClusterID obtiene los riesgos de un cluster con detalles
 func (r *RiskRepository) GetByClusterID(ctx context.Context, clusterID int64) ([]models.RiskDetail, error) {
 	query := `
-		SELECT r.id, r.name, r.svg, cr.exposure, cr.sensitivity, cr.consequence, cr.probability
+		SELECT r.id, r.name, cr.exposure, cr.sensitivity, cr.consequence, cr.probability
 		FROM "Risk" r
 		JOIN "Cluster_risk" cr ON r.id = cr.risk_id
 		WHERE cr.cluster_id = $1
@@ -381,11 +373,9 @@ func (r *RiskRepository) GetByClusterID(ctx context.Context, clusterID int64) ([
 	var risks []models.RiskDetail
 	for rows.Next() {
 		var rd models.RiskDetail
-		var svg sql.NullString
-		if err := rows.Scan(&rd.ID, &rd.Name, &svg, &rd.Exposure, &rd.Sensitivity, &rd.Consequence, &rd.Probability); err != nil {
+		if err := rows.Scan(&rd.ID, &rd.Name, &rd.Exposure, &rd.Sensitivity, &rd.Consequence, &rd.Probability); err != nil {
 			return nil, err
 		}
-		rd.SVG = svg.String
 		rd.RiskScore = calculateRiskScore(rd)
 		risks = append(risks, rd)
 	}
