@@ -52,7 +52,6 @@ type Cluster struct {
 type Risk struct {
 	ID   int64  `json:"id" db:"id"`
 	Name string `json:"name" db:"name"`
-	SVG  string `json:"svg,omitempty" db:"svg"`
 }
 
 // ClusterRisk representa la relación entre un cluster y un riesgo
