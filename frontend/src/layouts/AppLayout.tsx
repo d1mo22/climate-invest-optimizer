@@ -18,8 +18,15 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Header style={{ display: "flex", alignItems: "center" }}>
-        <div style={{ color: "#fff", fontWeight: 700, marginRight: 16 }}>Climate Invest</div>
+      <Header style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img
+            src="/data/logo2.png"
+            alt="RiskGuard"
+            style={{ width: 28, height: 28, objectFit: "contain" }}
+          />
+          <span style={{ color: "#fff", fontWeight: 700 }}>RiskGuard</span>
+        </Link>
         <Menu
           theme="dark"
           mode="horizontal"
