@@ -6,6 +6,7 @@ import {
   ProTable,
 } from "@ant-design/pro-components";
 import { Button, Progress, Spin, Alert } from "antd";
+import { ArrowLeftOutlined, EnvironmentOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, clusterService, dashboardService } from "../services";
@@ -659,6 +660,7 @@ export default function CountryDashboard() {
           </Button>
           <Button
             size="small"
+            icon={<ThunderboltOutlined />}
             onClick={() => {
               setOptShop(record);
               setOptShopOpen(true);
@@ -675,15 +677,16 @@ export default function CountryDashboard() {
     <PageContainer
       title={`Dashboard: ${countryData.país}`}
       extra={[
-        <Button key="back" onClick={() => navigate("/dashboards")}>
-          ← Volver
+        <Button key="back" icon={<ArrowLeftOutlined />} onClick={() => navigate("/dashboards")}>
+          Volver
         </Button>,
-        <Button key="opt" onClick={() => setOptCountryOpen(true)}>
+        <Button key="opt" icon={<ThunderboltOutlined />} onClick={() => setOptCountryOpen(true)}>
           Optimizar
         </Button>,
         <Button
           key="map"
           type="primary"
+          icon={<EnvironmentOutlined />}
           onClick={() => navigate(`/country/${slug}`)}
         >
           Ver Mapa

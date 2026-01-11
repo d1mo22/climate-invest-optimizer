@@ -5,7 +5,8 @@ import {
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Typography, message } from "antd";
+import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Tooltip, Typography, message } from "antd";
+import { RedoOutlined, ThunderboltOutlined, UploadOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, riskService } from "../services";
@@ -14,6 +15,7 @@ import { ApiError } from "../services/apiClient";
 import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
 import { slugify } from "../utils/slugify";
 import { OptimizeBudgetModal } from "../components/OptimizeBudgetModal";
+import { colors, getReadableTextColor } from "../theme/colors";
 
 /* =========================
    Tipos
@@ -216,6 +218,70 @@ export default function StoreDashboard() {
   const [removingMeasureName, setRemovingMeasureName] = useState<string | null>(null);
 
   const [optOpen, setOptOpen] = useState(false);
+
+  const [protocolByRiskId, setProtocolByRiskId] = useState<Record<
+    number,
+    { fileName: string; sentAt: number }
+  >>({});
+
+  const protocolStorageKey = useMemo(() => {
+    const shopId = storeData?.id;
+    if (!Number.isFinite(shopId) || (shopId ?? -1) <= 0) return null;
+    return `protocols:shop:${shopId}`;
+  }, [storeData?.id]);
+
+  useEffect(() => {
+    if (!protocolStorageKey) {
+      setProtocolByRiskId({});
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(protocolStorageKey);
+      if (!raw) {
+        setProtocolByRiskId({});
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setProtocolByRiskId(parsed);
+      } else {
+        setProtocolByRiskId({});
+      }
+    } catch {
+      setProtocolByRiskId({});
+    }
+  }, [protocolStorageKey]);
+
+  const saveProtocolState = (next: Record<number, { fileName: string; sentAt: number }>) => {
+    setProtocolByRiskId(next);
+    if (!protocolStorageKey) return;
+    try {
+      localStorage.setItem(protocolStorageKey, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const pickAndMarkProtocol = (riskId: number, riskName: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf,.doc,.docx,.txt,.md";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const next = {
+        ...protocolByRiskId,
+        [riskId]: { fileName: file.name, sentAt: Date.now() },
+      };
+      saveProtocolState(next);
+
+      message.success(`Protocolo listo para enviar: ${file.name}`);
+      console.log("[UI] protocol selected", { shopId: storeData?.id, riskId, riskName, fileName: file.name });
+    };
+    input.click();
+  };
 
   const riskOptions = useMemo(
     () =>
@@ -747,12 +813,52 @@ export default function StoreDashboard() {
     {
       title: "Ver",
       key: "actions",
-      width: 80,
+      width: 280,
       valueType: "option" as const,
       render: (_: any, record: any) => (
-        <Button size="small" type="primary" onClick={() => openRiskMeasuresModal(record)}>
-          Ver
-        </Button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Button size="small" type="primary" onClick={() => openRiskMeasuresModal(record)}>
+            Ver
+          </Button>
+          {(() => {
+            const riskId = Number(record.id);
+            const p = protocolByRiskId?.[riskId];
+            const tooltip = p
+              ? `Último protocolo: ${p.fileName} · ${new Date(p.sentAt).toLocaleString("es-ES")}`
+              : "Selecciona un archivo (no se envía todavía; solo UI)";
+
+            return (
+              <>
+                <Tooltip title={tooltip} placement="top">
+                  <Button
+                    size="small"
+                    icon={p ? <RedoOutlined /> : <UploadOutlined />}
+                    onClick={() => pickAndMarkProtocol(riskId, String(record.descripcion))}
+                  >
+                    {p ? "Reenviar" : "Enviar protocolo"}
+                  </Button>
+                </Tooltip>
+                {p ? (
+                  <Tag
+                    color={colors.primary.green}
+                    style={{
+                      maxWidth: 140,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontWeight: 900,
+                      color: getReadableTextColor(colors.primary.green),
+                      borderColor: "transparent",
+                    }}
+                    title={p.fileName}
+                  >
+                    {p.fileName}
+                  </Tag>
+                ) : null}
+              </>
+            );
+          })()}
+        </div>
       ),
     },
   ];
@@ -773,13 +879,22 @@ export default function StoreDashboard() {
       key: "type",
       width: 120,
       render: (text: string) => {
-        const colors: Record<string, string> = {
+        const typeColors: Record<string, string> = {
           natural: "#00ff88",
           material: "#4B6BFD",
           inmaterial: "#FDB022",
         };
+        const bg = typeColors[text] || "#3f3f46";
+        const fg = getReadableTextColor(bg);
         return (
-          <Tag color={colors[text] || "default"} style={{ fontWeight: 800 }}>
+          <Tag
+            color={bg}
+            style={{
+              fontWeight: 900,
+              color: fg,
+              borderColor: "transparent",
+            }}
+          >
             {text}
           </Tag>
         );
@@ -791,7 +906,7 @@ export default function StoreDashboard() {
       key: "cost",
       width: 140,
       render: (val: number) => (
-        <span style={{ color: "#00ff88", fontWeight: 800 }}>
+        <span style={{ color: colors.primary.green, fontWeight: 900 }}>
           {val?.toLocaleString("es-ES")} €
         </span>
       ),
@@ -857,6 +972,7 @@ export default function StoreDashboard() {
         <Button
           key="opt"
           type="primary"
+          icon={<ThunderboltOutlined />}
           disabled={!shopMeta || !Number.isFinite(storeData?.id) || (storeData?.id ?? -1) <= 0}
           onClick={() => setOptOpen(true)}
         >

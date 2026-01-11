@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Button, Collapse, Divider, Form, InputNumber, Modal, Radio, Select, Table, Typography, message } from "antd";
+import { Alert, Button, Collapse, Divider, Form, InputNumber, Modal, Radio, Select, Table, Tag, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { CrownOutlined, RocketOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { optimizationService } from "../services/optimizationService";
 import type { ShopWithCluster } from "../services/shopService";
 import { shopService } from "../services/shopService";
 import { ApiError } from "../services/apiClient";
+import { colors, getReadableTextColor } from "../theme/colors";
+import { buttonStyles, cardStyles } from "../theme/styles";
 
 export type OptimizationAlgorithm = "basic" | "plus" | "premium";
 
@@ -53,6 +56,8 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
 }) => {
   const [form] = Form.useForm();
 
+  const selectedAlgo = Form.useWatch("algorithm", form) as OptimizationAlgorithm | undefined;
+
   const [selectedShopIds, setSelectedShopIds] = useState<number[]>(fixedShopIds ?? []);
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -75,10 +80,33 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
   );
 
   const shopColumns: ColumnsType<any> = [
-    { title: "ID", dataIndex: "id", width: 70 },
-    { title: "Tienda", dataIndex: "location", ellipsis: true },
-    { title: "Riesgo", dataIndex: "totalRisk", width: 110, render: (v) => Number(v || 0).toFixed(2) },
+    { title: "ID", dataIndex: "id", width: 70, render: (v) => <span style={{ color: colors.text.primary, fontWeight: 800 }}>{v}</span> },
+    { title: "Tienda", dataIndex: "location", ellipsis: true, render: (v) => <span style={{ color: colors.text.primary, fontWeight: 800 }}>{v}</span> },
+    { title: "Riesgo", dataIndex: "totalRisk", width: 110, render: (v) => <span style={{ color: colors.primary.green, fontWeight: 900 }}>{Number(v || 0).toFixed(2)}</span> },
   ];
+
+  const algoHint = useMemo(() => {
+    const algo = selectedAlgo ?? "basic";
+    if (algo === "plus") {
+      return {
+        title: "Plus (Knapsack)",
+        desc: "Más preciso con presupuesto limitado; puede tardar más.",
+        icon: <RocketOutlined />,
+      };
+    }
+    if (algo === "premium") {
+      return {
+        title: "Premium (Weighted)",
+        desc: "Optimiza ponderando prioridades; ideal si marcas riesgos prioritarios.",
+        icon: <CrownOutlined />,
+      };
+    }
+    return {
+      title: "Basic (Greedy)",
+      desc: "Rápido y simple; buena opción para una primera propuesta.",
+      icon: <ThunderboltOutlined />,
+    };
+  }, [selectedAlgo]);
 
   const buildPreviewItems = (result: any): PreviewItem[] => {
     const recs = Array.isArray(result?.shop_recommendations) ? result.shop_recommendations : [];
@@ -213,16 +241,32 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
         title={title}
         open={open}
         onCancel={closeAll}
+        maskStyle={{ backgroundColor: colors.background.overlay }}
+        styles={{
+          content: {
+            background: colors.background.primary,
+            borderRadius: 18,
+            border: `1px solid ${colors.border.light}`,
+            boxShadow: "0 26px 80px rgba(0,0,0,0.55)",
+          },
+          header: { background: "transparent", borderBottom: `1px solid ${colors.border.subtle}` },
+          body: { background: "transparent" },
+          footer: { background: "transparent", borderTop: `1px solid ${colors.border.subtle}` },
+        }}
         footer={
           <>
-            <Button onClick={closeAll}>Cancelar</Button>
-            <Button type="primary" loading={running} onClick={runOptimization}>
+            <Button style={buttonStyles.subtle} onClick={closeAll}>
+              Cancelar
+            </Button>
+            <Button type="primary" style={buttonStyles.primary} loading={running} onClick={runOptimization} icon={<ThunderboltOutlined />}>
               Optimizar
             </Button>
           </>
         }
         width={900}
       >
+        <div style={cardStyles}>
+          <div style={{ padding: 16 }}>
         <Form
           form={form}
           layout="vertical"
@@ -230,11 +274,29 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
         >
           <Form.Item label="Algoritmo" name="algorithm" rules={[{ required: true }]}>
             <Radio.Group optionType="button" buttonStyle="solid">
-              <Radio.Button value="basic">Basic</Radio.Button>
-              <Radio.Button value="plus">Plus</Radio.Button>
-              <Radio.Button value="premium">Premium</Radio.Button>
+              <Radio.Button value="basic">
+                <ThunderboltOutlined /> Basic
+              </Radio.Button>
+              <Radio.Button value="plus">
+                <RocketOutlined /> Plus
+              </Radio.Button>
+              <Radio.Button value="premium">
+                <CrownOutlined /> Premium
+              </Radio.Button>
             </Radio.Group>
           </Form.Item>
+
+          <Alert
+            showIcon
+            type="info"
+            message={
+              <span style={{ fontWeight: 900, color: colors.text.primary }}>
+                {algoHint.icon} {algoHint.title}
+              </span>
+            }
+            description={<span style={{ color: colors.text.secondary }}>{algoHint.desc}</span>}
+            style={{ marginBottom: 12, border: `1px solid ${colors.border.subtle}`, background: "rgba(255,255,255,0.04)" }}
+          />
 
           <Form.Item label="Presupuesto máximo (€)" name="budget" rules={[{ required: true, message: "Presupuesto requerido" }]}>
             <InputNumber min={1} style={{ width: 260 }} />
@@ -276,17 +338,33 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
             />
           ) : null}
         </Form>
+          </div>
+        </div>
       </Modal>
 
       <Modal
         title="Resultado de la optimización"
         open={previewOpen}
         onCancel={() => setPreviewOpen(false)}
+        maskStyle={{ backgroundColor: colors.background.overlay }}
+        styles={{
+          content: {
+            background: colors.background.primary,
+            borderRadius: 18,
+            border: `1px solid ${colors.border.light}`,
+            boxShadow: "0 26px 80px rgba(0,0,0,0.55)",
+          },
+          header: { background: "transparent", borderBottom: `1px solid ${colors.border.subtle}` },
+          body: { background: "transparent" },
+          footer: { background: "transparent", borderTop: `1px solid ${colors.border.subtle}` },
+        }}
         width={900}
         footer={
           <>
-            <Button onClick={() => setPreviewOpen(false)}>Rechazar</Button>
-            <Button type="primary" loading={applying} onClick={applyChanges}>
+            <Button style={buttonStyles.subtle} onClick={() => setPreviewOpen(false)}>
+              Rechazar
+            </Button>
+            <Button type="primary" style={buttonStyles.primary} loading={applying} onClick={applyChanges} icon={<ThunderboltOutlined />}>
               Aceptar y aplicar
             </Button>
           </>
@@ -316,7 +394,31 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
                       dataSource={item.measures}
                       columns={[
                         { title: "Medida", dataIndex: "name", key: "name", ellipsis: true },
-                        { title: "Tipo", dataIndex: "type", key: "type", width: 120 },
+                        {
+                          title: "Tipo",
+                          dataIndex: "type",
+                          key: "type",
+                          width: 120,
+                          render: (t) => {
+                            const v = String(t || "").toLowerCase();
+                            const tagColor = v === "natural" ? colors.primary.green : v === "material" ? colors.primary.blue : "gold";
+                            const fg = typeof tagColor === "string" && tagColor.startsWith("#")
+                              ? getReadableTextColor(tagColor)
+                              : colors.text.primary;
+                            return (
+                              <Tag
+                                color={tagColor}
+                                style={{
+                                  fontWeight: 900,
+                                  color: fg,
+                                  borderColor: "transparent",
+                                }}
+                              >
+                                {t}
+                              </Tag>
+                            );
+                          },
+                        },
                         { title: "Coste", dataIndex: "cost", key: "cost", width: 120, render: (v) => `${Number(v || 0).toLocaleString("es-ES")} €` },
                         { title: "Reducción %", dataIndex: "riskReductionPct", key: "riskReductionPct", width: 120, render: (v) => `${Number(v || 0).toFixed(1)}%` },
                         { title: "Prioridad", dataIndex: "priority", key: "priority", width: 110 },

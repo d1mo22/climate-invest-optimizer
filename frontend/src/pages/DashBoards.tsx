@@ -5,7 +5,6 @@ import { slugify } from "../utils/slugify";
 import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
 import { shopService, dashboardService } from "../services";
 import { Spin, Alert } from "antd";
-import "../index.css";
 import { computeSuggestedInvestment } from "../utils/suggestedInvestment";
 
 // Mapeo de nombres en inglés a español (la BD tiene los países en inglés)

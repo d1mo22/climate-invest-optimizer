@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useNavigate } from "react-router-dom";
-import "../index.css";
 
 // Utilidades consolidadas
 import { slugify } from "../utils/slugify";
