@@ -3,6 +3,7 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/d1mo22/climate-invest-optimizer/backend/internal/domain/models"
 	"github.com/d1mo22/climate-invest-optimizer/backend/internal/domain/repository"
@@ -283,6 +284,9 @@ func (s *shopService) ApplyMeasures(ctx context.Context, shopID int64, measureNa
 		}
 
 		if err := s.shopRepo.ApplyMeasure(ctx, shopID, measureName); err != nil {
+			if errors.Is(err, repository.ErrMeasureAlreadyAppliedToShop) {
+				return models.ErrMeasureAlreadyApplied
+			}
 			return models.ErrDatabase(err)
 		}
 	}
@@ -297,7 +301,18 @@ func (s *shopService) ApplyMeasures(ctx context.Context, shopID int64, measureNa
 
 // RemoveMeasure elimina una medida de una tienda
 func (s *shopService) RemoveMeasure(ctx context.Context, shopID int64, measureName string) error {
+	shop, err := s.shopRepo.GetByID(ctx, shopID)
+	if err != nil {
+		return models.ErrDatabase(err)
+	}
+	if shop == nil {
+		return models.ErrShopNotFound
+	}
+
 	if err := s.shopRepo.RemoveMeasure(ctx, shopID, measureName); err != nil {
+		if errors.Is(err, repository.ErrMeasureNotAppliedToShop) {
+			return models.ErrMeasureNotApplied
+		}
 		return models.ErrDatabase(err)
 	}
 	return nil

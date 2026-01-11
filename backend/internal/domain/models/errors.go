@@ -51,31 +51,31 @@ var (
 	ErrInvalidInput = func(details string) *AppError {
 		return NewAppError("VALIDATION_ERROR", details, http.StatusBadRequest, nil)
 	}
-	ErrInvalidID = NewAppError("INVALID_ID", "El ID proporcionado no es válido", http.StatusBadRequest, nil)
+	ErrInvalidID         = NewAppError("INVALID_ID", "El ID proporcionado no es válido", http.StatusBadRequest, nil)
 	ErrInvalidPagination = NewAppError("INVALID_PAGINATION", "Parámetros de paginación inválidos", http.StatusBadRequest, nil)
-	ErrInvalidBudget = NewAppError("INVALID_BUDGET", "El presupuesto debe ser mayor a 0", http.StatusBadRequest, nil)
+	ErrInvalidBudget     = NewAppError("INVALID_BUDGET", "El presupuesto debe ser mayor a 0", http.StatusBadRequest, nil)
 )
 
 // Errores de autenticación (401)
 var (
-	ErrUnauthorized = NewAppError("UNAUTHORIZED", "No autorizado. Por favor, inicie sesión", http.StatusUnauthorized, nil)
-	ErrInvalidToken = NewAppError("INVALID_TOKEN", "Token de autenticación inválido o expirado", http.StatusUnauthorized, nil)
+	ErrUnauthorized       = NewAppError("UNAUTHORIZED", "No autorizado. Por favor, inicie sesión", http.StatusUnauthorized, nil)
+	ErrInvalidToken       = NewAppError("INVALID_TOKEN", "Token de autenticación inválido o expirado", http.StatusUnauthorized, nil)
 	ErrInvalidCredentials = NewAppError("INVALID_CREDENTIALS", "Email o contraseña incorrectos", http.StatusUnauthorized, nil)
 )
 
 // Errores de autorización (403)
 var (
-	ErrForbidden = NewAppError("FORBIDDEN", "No tiene permisos para realizar esta acción", http.StatusForbidden, nil)
+	ErrForbidden        = NewAppError("FORBIDDEN", "No tiene permisos para realizar esta acción", http.StatusForbidden, nil)
 	ErrInsufficientRole = NewAppError("INSUFFICIENT_ROLE", "Su rol no permite realizar esta acción", http.StatusForbidden, nil)
 )
 
 // Errores de recurso no encontrado (404)
 var (
-	ErrShopNotFound = NewAppError("SHOP_NOT_FOUND", "Tienda no encontrada", http.StatusNotFound, nil)
-	ErrClusterNotFound = NewAppError("CLUSTER_NOT_FOUND", "Cluster no encontrado", http.StatusNotFound, nil)
-	ErrRiskNotFound = NewAppError("RISK_NOT_FOUND", "Riesgo no encontrado", http.StatusNotFound, nil)
-	ErrMeasureNotFound = NewAppError("MEASURE_NOT_FOUND", "Medida no encontrada", http.StatusNotFound, nil)
-	ErrUserNotFound = NewAppError("USER_NOT_FOUND", "Usuario no encontrado", http.StatusNotFound, nil)
+	ErrShopNotFound     = NewAppError("SHOP_NOT_FOUND", "Tienda no encontrada", http.StatusNotFound, nil)
+	ErrClusterNotFound  = NewAppError("CLUSTER_NOT_FOUND", "Cluster no encontrado", http.StatusNotFound, nil)
+	ErrRiskNotFound     = NewAppError("RISK_NOT_FOUND", "Riesgo no encontrado", http.StatusNotFound, nil)
+	ErrMeasureNotFound  = NewAppError("MEASURE_NOT_FOUND", "Medida no encontrada", http.StatusNotFound, nil)
+	ErrUserNotFound     = NewAppError("USER_NOT_FOUND", "Usuario no encontrado", http.StatusNotFound, nil)
 	ErrResourceNotFound = func(resource string) *AppError {
 		return NewAppError("NOT_FOUND", fmt.Sprintf("%s no encontrado", resource), http.StatusNotFound, nil)
 	}
@@ -83,9 +83,10 @@ var (
 
 // Errores de conflicto (409)
 var (
-	ErrDuplicateEmail = NewAppError("DUPLICATE_EMAIL", "El email ya está registrado", http.StatusConflict, nil)
+	ErrDuplicateEmail        = NewAppError("DUPLICATE_EMAIL", "El email ya está registrado", http.StatusConflict, nil)
 	ErrMeasureAlreadyApplied = NewAppError("MEASURE_ALREADY_APPLIED", "La medida ya está aplicada a esta tienda", http.StatusConflict, nil)
-	ErrDuplicateResource = func(resource string) *AppError {
+	ErrMeasureNotApplied     = NewAppError("MEASURE_NOT_APPLIED", "La medida no está aplicada a esta tienda", http.StatusNotFound, nil)
+	ErrDuplicateResource     = func(resource string) *AppError {
 		return NewAppError("DUPLICATE_RESOURCE", fmt.Sprintf("%s ya existe", resource), http.StatusConflict, nil)
 	}
 )
@@ -103,9 +104,9 @@ var (
 
 // Errores de negocio (422)
 var (
-	ErrInsufficientBudget = NewAppError("INSUFFICIENT_BUDGET", "El presupuesto es insuficiente para cualquier medida", http.StatusUnprocessableEntity, nil)
+	ErrInsufficientBudget  = NewAppError("INSUFFICIENT_BUDGET", "El presupuesto es insuficiente para cualquier medida", http.StatusUnprocessableEntity, nil)
 	ErrNoMeasuresAvailable = NewAppError("NO_MEASURES_AVAILABLE", "No hay medidas disponibles para los riesgos identificados", http.StatusUnprocessableEntity, nil)
-	ErrNoShopsSelected = NewAppError("NO_SHOPS_SELECTED", "Debe seleccionar al menos una tienda", http.StatusUnprocessableEntity, nil)
+	ErrNoShopsSelected     = NewAppError("NO_SHOPS_SELECTED", "Debe seleccionar al menos una tienda", http.StatusUnprocessableEntity, nil)
 )
 
 // WithInternal añade un error interno para logging

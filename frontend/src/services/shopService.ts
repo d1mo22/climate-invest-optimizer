@@ -48,6 +48,12 @@ const mapMeasure = (m: RawMeasure): Measure => ({
   type: m.type,
 });
 
+const encodeMeasureNameForPath = (measureName: string): string => {
+  // Keep '/' unescaped so Gin catch-all routes like /*measureName work naturally,
+  // but still encode spaces and other unsafe characters.
+  return encodeURIComponent(measureName).replace(/%2F/gi, '/');
+};
+
 export interface RiskAssessment {
   shop_id: number;
   overall_risk_score?: number;
@@ -185,7 +191,8 @@ export const shopService = {
 
   // Remove measure from shop
   removeMeasure: async (shopId: number, measureName: string): Promise<void> => {
-    return apiClient.delete(`${API_ENDPOINTS.SHOP_MEASURES(shopId)}/${measureName}`);
+    const encoded = encodeMeasureNameForPath(measureName);
+    return apiClient.delete(`${API_ENDPOINTS.SHOP_MEASURES(shopId)}/${encoded}`);
   },
 
   // Get applicable measures for shop

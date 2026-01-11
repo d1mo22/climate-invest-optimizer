@@ -5,11 +5,13 @@ import {
   StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button, Progress, Spin, Alert, Tag, Modal, List, Typography, message } from "antd";
+import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Typography, message } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, riskService } from "../services";
 import type { RiskAssessment, Measure } from "../services/shopService";
+import { ApiError } from "../services/apiClient";
+import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
 import { slugify } from "../utils/slugify";
 
 /* =========================
@@ -209,6 +211,7 @@ export default function StoreDashboard() {
   const [riskMeasures, setRiskMeasures] = useState<Measure[]>([]);
   const [riskMeasuresCache, setRiskMeasuresCache] = useState<Record<number, Measure[]>>({});
   const [applyingMeasureName, setApplyingMeasureName] = useState<string | null>(null);
+  const [removingMeasureName, setRemovingMeasureName] = useState<string | null>(null);
 
   useEffect(() => {
     loadStoreData();
@@ -403,9 +406,85 @@ export default function StoreDashboard() {
       message.success(`Medida aplicada: ${m.name}`);
     } catch (e) {
       console.error("Error aplicando medida", e);
-      message.error("No se pudo aplicar la medida");
+      if (e instanceof ApiError) {
+        message.error(`No se pudo aplicar la medida (${e.status}): ${e.message}`);
+      } else {
+        message.error("No se pudo aplicar la medida");
+      }
     } finally {
       setApplyingMeasureName(null);
+    }
+  };
+
+  const removeMeasureFromStore = async (m: Measure) => {
+    if (!storeData) return;
+
+    console.log("[UI] removeMeasureFromStore(start)", { shopId: storeData.id, measure: m.name });
+
+    const isApplied = !!storeData.measures?.some((am) => am.name === m.name);
+    if (!isApplied) return;
+
+    // Si estamos en modo fallback (sin backend real), solo reflejamos localmente.
+    const canCallApi = Number.isFinite(storeData.id) && storeData.id > 0;
+
+    try {
+      setRemovingMeasureName(m.name);
+
+      if (canCallApi) {
+        console.log("[UI] removeMeasureFromStore(api)", { shopId: storeData.id, measure: m.name });
+        await shopService.removeMeasure(storeData.id, m.name);
+      }
+
+      const [updatedMeasures, updatedCoverage] = await Promise.all([
+        canCallApi
+          ? shopService.getShopMeasures(storeData.id).catch(() => {
+              return (storeData.measures || []).filter((mm) => mm.name !== m.name);
+            })
+          : Promise.resolve((storeData.measures || []).filter((mm) => mm.name !== m.name)),
+        canCallApi ? shopService.getRiskCoverage(storeData.id).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      setStoreData((prev) => {
+        if (!prev) return prev;
+
+        const measures = updatedMeasures || [];
+        const investment = measures.reduce((sum, mm) => sum + (mm.estimatedCost || 0), 0);
+
+        const totalRisks = updatedCoverage?.total_risks ?? prev.riesgos_totales;
+        const resolvedRisks = updatedCoverage?.covered_risks ?? Math.min(totalRisks, measures.length);
+        const pendingRisks = updatedCoverage?.uncovered_risks ?? Math.max(0, totalRisks - resolvedRisks);
+
+        const coveredRiskIds = updatedCoverage?.risks
+          ? updatedCoverage.risks.filter((r) => r.is_covered).map((r) => r.risk_id)
+          : prev.coveredRiskIds;
+
+        const roi = prev.roi;
+        const annualBenefit = investment * (roi / 100);
+
+        return {
+          ...prev,
+          measures,
+          inversion: investment / 1000,
+          beneficio_anual: annualBenefit / 1000,
+          plan_next_year: (investment * 0.4) / 1000,
+          plan_10y: (investment * 3.5) / 1000,
+          riesgos_resueltos: resolvedRisks,
+          riesgos_pendientes: pendingRisks,
+          riesgos_totales: totalRisks,
+          coveredRiskIds,
+        };
+      });
+
+      message.success(`Medida eliminada: ${m.name}`);
+    } catch (e) {
+      console.error("Error eliminando medida", e);
+      if (e instanceof ApiError) {
+        message.error(`No se pudo eliminar la medida (${e.status}): ${e.message}`);
+      } else {
+        message.error("No se pudo eliminar la medida");
+      }
+    } finally {
+      setRemovingMeasureName(null);
     }
   };
 
@@ -698,6 +777,54 @@ export default function StoreDashboard() {
         <span style={{ color: "#00ff88", fontWeight: 800 }}>
           {val?.toLocaleString("es-ES")} €
         </span>
+      ),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 120,
+      valueType: "option" as const,
+      render: (_: any, record: Measure) => (
+        <Popconfirm
+          title="Eliminar medida"
+          description={`¿Seguro que quieres eliminar la medida "${record.name}" de esta tienda?`}
+          okText="Eliminar"
+          cancelText="Cancelar"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => {
+            if (!Number.isFinite(storeData?.id) || (storeData?.id ?? -1) <= 0) {
+              message.warning("Modo offline: no se puede eliminar sin API");
+              return;
+            }
+
+            console.log("[UI] delete confirmed", { shopId: storeData.id, measure: record.name });
+            removeMeasureFromStore(record);
+          }}
+        >
+          <Button
+            danger
+            size="small"
+            loading={removingMeasureName === record.name}
+            onClick={() => {
+              if (!Number.isFinite(storeData?.id) || (storeData?.id ?? -1) <= 0) {
+                message.warning("Modo offline: no se puede eliminar sin API");
+                return;
+              }
+
+              const encodedMeasure = encodeURIComponent(record.name).replace(/%2F/gi, "/");
+              const endpoint = `${API_ENDPOINTS.SHOP_MEASURES(storeData.id)}/${encodedMeasure}`;
+
+              message.info(`DELETE → ${API_BASE_URL}${endpoint}`);
+              console.log("[UI] delete clicked", {
+                shopId: storeData.id,
+                measure: record.name,
+                url: `${API_BASE_URL}${endpoint}`,
+              });
+            }}
+          >
+            Eliminar
+          </Button>
+        </Popconfirm>
       ),
     },
   ];

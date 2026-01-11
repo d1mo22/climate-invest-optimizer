@@ -55,8 +55,9 @@ class ApiClient {
       requestHeaders.set('Authorization', `Bearer ${token}`);
     }
 
-    if (IS_DEBUG) {
-      console.log(`[API] ${fetchOptions.method || 'GET'} ${url}`);
+    const method = (fetchOptions.method || 'GET').toUpperCase();
+    if (IS_DEBUG || method === 'DELETE') {
+      console.log(`[API] ${method} ${url}`);
     }
 
     try {
