@@ -9,10 +9,11 @@ import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Typography
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, riskService } from "../services";
-import type { RiskAssessment, Measure } from "../services/shopService";
+import type { RiskAssessment, Measure, ShopWithCluster } from "../services/shopService";
 import { ApiError } from "../services/apiClient";
 import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
 import { slugify } from "../utils/slugify";
+import { OptimizeBudgetModal } from "../components/OptimizeBudgetModal";
 
 /* =========================
    Tipos
@@ -201,6 +202,7 @@ export default function StoreDashboard() {
   const { storeSlug } = useParams<{ storeSlug: string }>();
 
   const [storeData, setStoreData] = useState<StoreData | null>(null);
+  const [shopMeta, setShopMeta] = useState<ShopWithCluster | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -212,6 +214,17 @@ export default function StoreDashboard() {
   const [riskMeasuresCache, setRiskMeasuresCache] = useState<Record<number, Measure[]>>({});
   const [applyingMeasureName, setApplyingMeasureName] = useState<string | null>(null);
   const [removingMeasureName, setRemovingMeasureName] = useState<string | null>(null);
+
+  const [optOpen, setOptOpen] = useState(false);
+
+  const riskOptions = useMemo(
+    () =>
+      (storeData?.risks || []).map((r) => ({
+        id: r.id,
+        label: r.name,
+      })),
+    [storeData?.risks]
+  );
 
   useEffect(() => {
     loadStoreData();
@@ -236,6 +249,8 @@ export default function StoreDashboard() {
             shopService.getRiskAssessment(storeId).catch(() => ({ risks: [] })),
             shopService.getRiskCoverage(storeId).catch(() => null),
           ]);
+
+          setShopMeta(shop);
 
           const measures = measuresResponse || [];
           const riskAssessment = riskAssessmentResponse || { risks: [] };
@@ -308,9 +323,11 @@ export default function StoreDashboard() {
           risks: FALLBACK_RISKS,
         } as StoreData;
         setStoreData(dummy);
+        setShopMeta(null);
         return;
       }
       setStoreData(fallback);
+      setShopMeta(null);
     } catch (err) {
       console.error("Error loading store data:", err);
       setError(err instanceof Error ? err.message : "Error cargando datos de la tienda");
@@ -837,11 +854,29 @@ export default function StoreDashboard() {
         <Button key="back" onClick={() => navigate(`/country/${countrySlug}`)}>
           ← País
         </Button>,
+        <Button
+          key="opt"
+          type="primary"
+          disabled={!shopMeta || !Number.isFinite(storeData?.id) || (storeData?.id ?? -1) <= 0}
+          onClick={() => setOptOpen(true)}
+        >
+          Optimizar
+        </Button>,
         <Button key="global" onClick={() => navigate("/dashboards")}>
           Dashboard Global
         </Button>,
       ]}
     >
+      <OptimizeBudgetModal
+        open={optOpen}
+        onClose={() => setOptOpen(false)}
+        title={`Optimizar: ${storeData.tienda}`}
+        shops={shopMeta ? [shopMeta] : []}
+        fixedShopIds={shopMeta ? [shopMeta.id] : []}
+        riskOptions={riskOptions}
+        onApplied={loadStoreData}
+      />
+
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>

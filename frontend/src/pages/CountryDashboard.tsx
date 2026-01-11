@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PageContainer,
   ProCard,
@@ -11,6 +11,7 @@ import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, clusterService, dashboardService } from "../services";
 import type { ShopWithCluster } from "../services/shopService";
 import { computeSuggestedInvestment } from "../utils/suggestedInvestment";
+import { OptimizeBudgetModal } from "../components/OptimizeBudgetModal";
 
 /* =========================
    Alias slug -> nombre país
@@ -193,6 +194,15 @@ export default function CountryDashboard() {
   const [risks, setRisks] = useState<RiskData[]>([]);
   const [shops, setShops] = useState<ShopWithCluster[]>([]);
   const [shopCoverageById, setShopCoverageById] = useState<Record<number, ShopCoverageComputed>>({});
+
+  const [optCountryOpen, setOptCountryOpen] = useState(false);
+  const [optShopOpen, setOptShopOpen] = useState(false);
+  const [optShop, setOptShop] = useState<ShopWithCluster | null>(null);
+
+  const riskOptions = useMemo(
+    () => risks.map((r) => ({ id: r.id, label: `${r.tipo}: ${r.descripcion}` })),
+    [risks]
+  );
 
   useEffect(() => {
     loadCountryData();
@@ -638,14 +648,25 @@ export default function CountryDashboard() {
       render: (val: number) => <span style={{ color: "#fff" }}>{val}</span>,
     },
     {
-      title: "Ver",
+      title: "Acciones",
       key: "actions",
-      width: 90,
+      width: 170,
       valueType: "option" as const,
       render: (_: any, record: ShopWithCluster) => (
-        <Button type="primary" size="small" onClick={() => navigate(`/store/${record.id}`)}>
-          Ver
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button type="primary" size="small" onClick={() => navigate(`/store/${record.id}`)}>
+            Ver
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              setOptShop(record);
+              setOptShopOpen(true);
+            }}
+          >
+            Optimizar
+          </Button>
+        </div>
       ),
     },
   ];
@@ -657,6 +678,9 @@ export default function CountryDashboard() {
         <Button key="back" onClick={() => navigate("/dashboards")}>
           ← Volver
         </Button>,
+        <Button key="opt" onClick={() => setOptCountryOpen(true)}>
+          Optimizar
+        </Button>,
         <Button
           key="map"
           type="primary"
@@ -666,6 +690,28 @@ export default function CountryDashboard() {
         </Button>,
       ]}
     >
+      <OptimizeBudgetModal
+        open={optCountryOpen}
+        onClose={() => setOptCountryOpen(false)}
+        title={`Optimizar: ${countryData.país}`}
+        shops={shops}
+        riskOptions={riskOptions}
+        onApplied={loadCountryData}
+      />
+
+      <OptimizeBudgetModal
+        open={optShopOpen}
+        onClose={() => {
+          setOptShopOpen(false);
+          setOptShop(null);
+        }}
+        title={optShop ? `Optimizar tienda: ${optShop.location}` : "Optimizar tienda"}
+        shops={optShop ? [optShop] : []}
+        fixedShopIds={optShop ? [optShop.id] : []}
+        riskOptions={riskOptions}
+        onApplied={loadCountryData}
+      />
+
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>

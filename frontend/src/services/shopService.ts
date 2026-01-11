@@ -189,6 +189,14 @@ export const shopService = {
     });
   },
 
+  // Apply multiple measures to shop
+  applyMeasures: async (shopId: number, measureNames: string[]): Promise<void> => {
+    const unique = Array.from(new Set((measureNames || []).filter(Boolean)));
+    return apiClient.post(API_ENDPOINTS.SHOP_MEASURES(shopId), {
+      measure_names: unique,
+    });
+  },
+
   // Remove measure from shop
   removeMeasure: async (shopId: number, measureName: string): Promise<void> => {
     const encoded = encodeMeasureNameForPath(measureName);

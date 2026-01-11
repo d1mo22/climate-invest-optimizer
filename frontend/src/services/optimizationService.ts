@@ -2,46 +2,44 @@ import { apiClient } from './apiClient';
 import { API_ENDPOINTS } from '../config/api';
 
 export interface OptimizationRequest {
-  budget: number;
-  priorityWeights?: {
-    riskReduction?: number;
-    roi?: number;
-    carbonReduction?: number;
-  };
-  constraints?: {
-    minShopsAffected?: number;
-    maxMeasuresCombination?: number;
-    preferredTypes?: Array<'natural' | 'material' | 'inmaterial'>;
-  };
-  shopIds?: number[];
-  clusterIds?: number[];
+  shop_ids: number[];
+  max_budget: number;
+  strategy?: 'greedy' | 'knapsack' | 'weighted';
+  risk_priorities?: number[];
 }
 
-export interface OptimizationResult {
-  totalBudget: number;
-  usedBudget: number;
-  remainingBudget: number;
-  recommendations: Array<{
+export type OptimizationResult = {
+  total_cost: number;
+  remaining_budget: number;
+  total_risk_reduction: number;
+  strategy_used: string;
+  metrics?: {
+    budget_utilization_percentage: number;
+    average_risk_reduction: number;
+    estimated_roi: number;
+    processing_time_ms: number;
+  };
+  shop_recommendations: Array<{
     shop_id: number;
     shop_location: string;
+    current_risk: number;
+    projected_risk: number;
+    estimated_investment: number;
     measures: Array<{
-      name: string;
-      cost: number;
-      type: string;
-      expectedRiskReduction: number;
+      measure: {
+        name: string;
+        estimatedCost?: number;
+        estimated_cost?: number;
+        type: string;
+      };
       priority: number;
+      risk_reduction_percentage: number;
+      cost_efficiency_score: number;
+      affected_risks: string[];
+      justification: string;
     }>;
-    totalCost: number;
-    expectedBenefit: number;
-    roi: number;
   }>;
-  summary: {
-    totalShopsAffected: number;
-    totalMeasuresApplied: number;
-    averageRiskReduction: number;
-    totalROI: number;
-  };
-}
+};
 
 export const optimizationService = {
   // Optimize budget allocation
