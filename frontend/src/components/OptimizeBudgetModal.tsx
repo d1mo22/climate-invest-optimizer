@@ -219,6 +219,11 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
       }
 
       message.success("Cambios aplicados y guardados");
+      
+      // Increment data version to notify all dashboards
+      const currentVersion = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      localStorage.setItem('dataVersion', String(currentVersion + 1));
+      
       setPreviewOpen(false);
       closeAll();
 

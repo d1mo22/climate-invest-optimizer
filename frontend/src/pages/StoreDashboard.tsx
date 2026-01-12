@@ -207,6 +207,7 @@ export default function StoreDashboard() {
   const [shopMeta, setShopMeta] = useState<ShopWithCluster | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataVersion, setDataVersion] = useState(0);
 
   const [riskModalOpen, setRiskModalOpen] = useState(false);
   const [selectedRisk, setSelectedRisk] = useState<{ id: number; name: string } | null>(null);
@@ -294,7 +295,27 @@ export default function StoreDashboard() {
 
   useEffect(() => {
     loadStoreData();
-  }, [storeSlug]);
+  }, [storeSlug, dataVersion]);
+
+  // Listen for data changes from other dashboards
+  useEffect(() => {
+    const checkVersion = () => {
+      const version = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      if (version !== dataVersion) {
+        setDataVersion(version);
+      }
+    };
+
+    // Check on mount and when window regains focus
+    checkVersion();
+    window.addEventListener('focus', checkVersion);
+    window.addEventListener('storage', checkVersion);
+
+    return () => {
+      window.removeEventListener('focus', checkVersion);
+      window.removeEventListener('storage', checkVersion);
+    };
+  }, [dataVersion]);
 
   const loadStoreData = async () => {
     if (!storeSlug) return;
@@ -486,6 +507,10 @@ export default function StoreDashboard() {
         };
       });
 
+      // Increment data version to notify other dashboards
+      const currentVersion = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      localStorage.setItem('dataVersion', String(currentVersion + 1));
+
       message.success(`Medida aplicada: ${m.name}`);
     } catch (e) {
       console.error("Error aplicando medida", e);
@@ -557,6 +582,10 @@ export default function StoreDashboard() {
           coveredRiskIds,
         };
       });
+
+      // Increment data version to notify other dashboards
+      const currentVersion = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      localStorage.setItem('dataVersion', String(currentVersion + 1));
 
       message.success(`Medida eliminada: ${m.name}`);
     } catch (e) {
@@ -1097,21 +1126,6 @@ export default function StoreDashboard() {
           />
         </ProCard>
 
-        {/* Risks Table */}
-        <ProCard colSpan={24} title="Detalle de Riesgos" bordered style={cardStyle}>
-          <ProTable
-            columns={riskColumns}
-            dataSource={tableData}
-            search={false}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-            }}
-            rowKey="key"
-            style={{ background: "transparent" }}
-          />
-        </ProCard>
-
         {/* Pending Risks */}
         {pendingRisks.length > 0 && (
           <ProCard colSpan={24} title="⚠️ Riesgos Pendientes" bordered style={{...cardStyle, borderColor: "#ff4d4f"}}>
@@ -1138,6 +1152,22 @@ export default function StoreDashboard() {
             </div>
           </ProCard>
         )}
+
+        {/* Risks Table */}
+        <ProCard colSpan={24} title="Detalle de Riesgos" bordered style={cardStyle}>
+          <ProTable
+            columns={riskColumns}
+            dataSource={tableData}
+            search={false}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+            }}
+            rowKey="key"
+            style={{ background: "transparent" }}
+          />
+        </ProCard>
+
       </ProCard>
 
       <Modal

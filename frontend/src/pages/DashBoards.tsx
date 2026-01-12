@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { PageContainer, ProCard, ProTable } from "@ant-design/pro-components";
 import { useNavigate } from "react-router-dom";
 import { slugify } from "../utils/slugify";
-import { Gauge, DualAxes, Column, Pie } from "@ant-design/plots";
+import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, dashboardService } from "../services";
 import { Spin, Alert } from "antd";
 import { computeSuggestedInvestment } from "../utils/suggestedInvestment";
@@ -86,10 +86,32 @@ export default function DashBoards() {
     highRiskShops: number;
     averageRisk: number;
   } | null>(null);
+  const [investmentByType, setInvestmentByType] = useState({ natural: 0, material: 0, inmaterial: 0 });
+  const [dataVersion, setDataVersion] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [dataVersion]);
+
+  // Listen for data changes from other dashboards
+  useEffect(() => {
+    const checkVersion = () => {
+      const version = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      if (version !== dataVersion) {
+        setDataVersion(version);
+      }
+    };
+
+    // Check on mount and when window regains focus
+    checkVersion();
+    window.addEventListener('focus', checkVersion);
+    window.addEventListener('storage', checkVersion);
+
+    return () => {
+      window.removeEventListener('focus', checkVersion);
+      window.removeEventListener('storage', checkVersion);
+    };
+  }, [dataVersion]);
 
   const loadDashboardData = async () => {
     try {
@@ -102,12 +124,16 @@ export default function DashBoards() {
         dashboardService.getStats(),
       ]);
 
-      // Fuente de verdad para coherencia: risk-coverage por tienda
+      // Calcular inversión real (medidas ya aplicadas) y sugerida (pendientes)
       const coverageResults = await Promise.all(
         shopsResponse.items.map(async (shop) => {
           try {
-            const coverage = await shopService.getRiskCoverage(shop.id);
+            const [coverage, appliedMeasures] = await Promise.all([
+              shopService.getRiskCoverage(shop.id),
+              shopService.getShopMeasures(shop.id).catch(() => []),
+            ]);
             const suggestedInvestment = computeSuggestedInvestment(coverage.risks || []);
+            const actualInvestment = appliedMeasures.reduce((sum, m) => sum + (m.estimatedCost || 0), 0);
 
             return {
               shopId: shop.id,
@@ -116,6 +142,8 @@ export default function DashBoards() {
               uncoveredRisks: coverage.uncovered_risks,
               coveragePct: coverage.coverage_percentage,
               suggestedInvestment,
+              actualInvestment,
+              appliedMeasures,
             };
           } catch {
             return null;
@@ -126,18 +154,29 @@ export default function DashBoards() {
       const coverageByShopId = new Map<number, NonNullable<(typeof coverageResults)[number]>>();
       let sumTotalRisks = 0;
       let sumCoveredRisks = 0;
+      let sumActualInvestment = 0;
+      let investmentByType = { natural: 0, material: 0, inmaterial: 0 };
+
       for (const r of coverageResults) {
         if (!r) continue;
         coverageByShopId.set(r.shopId, r);
         sumTotalRisks += r.totalRisks;
         sumCoveredRisks += r.coveredRisks;
+        sumActualInvestment += r.actualInvestment;
+        
+        // Acumular inversión por tipo de medida
+        for (const measure of r.appliedMeasures) {
+          const type = measure.type as 'natural' | 'material' | 'inmaterial' || 'material';
+          investmentByType[type] += measure.estimatedCost || 0;
+        }
       }
 
       const totalShops = shopsResponse.pagination.total_items || shopsResponse.items.length;
-      const totalInvestment = stats?.total_investment ?? 0;
+      const totalInvestment = sumActualInvestment;
       const coveragePct = sumTotalRisks > 0 ? (sumCoveredRisks / sumTotalRisks) * 100 : (stats?.coverage_percentage ?? 0);
 
       setCoverage(coveragePct);
+      setInvestmentByType(investmentByType);
       setStatsTotals({
         totalInvestment,
         totalShops,
@@ -215,6 +254,7 @@ export default function DashBoards() {
       });
 
       rows.sort((a, b) => b.inversion - a.inversion);
+      console.log('[DashBoards] Country investments:', rows.map(r => ({ country: r.país, investment: r.inversion, shops: r.tiendasTotales })));
       setData(rows);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -243,35 +283,52 @@ export default function DashBoards() {
     },
   };
 
-  const years = Array.from({ length: 10 }).map((_, i) => 2026 + i);
-  const capex10yTotal = inversionTotal;
-  const beneficioAnualEstimado = inversionTotal * 0.12;
+  const years = Array.from({ length: 10 }, (_, i) => 2026 + i);
+  const baseInvestment = statsTotals?.totalInvestment || 0;
+  const plan10y = Math.round(baseInvestment * 3.5);
+  const roi = Math.max(0, 1 - (statsTotals?.averageRisk ?? 0)) * 12;
+  const beneficioAnual = baseInvestment * (roi / 100);
 
-  const invSeries = years.map((y, i) => ({
-    year: String(y),
-    tipo: "Inversión (€)",
-    valor: Math.round((capex10yTotal * (1 - i / years.length)) / years.length),
-  }));
-
-  const benSeries = years.map((y, i) => {
-    const growth = 1 + (i / years.length) * 0.3;
+  // Proyección por año iterando sobre cada país
+  const projectionByYear = years.map((year, i) => {
+    const factor = 1 + i * 0.15;
+    const yearInvestment = Math.round((plan10y / 10) * (1 - i / years.length));
+    const yearBenefit = Math.round(beneficioAnual * factor);
+    
     return {
-      year: String(y),
-      tipo: "Beneficio (€)",
-      valor: Math.round(beneficioAnualEstimado * growth),
+      año: year,
+      inversión: yearInvestment,
+      beneficio: yearBenefit,
     };
   });
 
-  const dualData = [...invSeries, ...benSeries];
+  // Datos para el gráfico Area
+  const projectionChartData = projectionByYear.flatMap(item => [
+    {
+      año: String(item.año),
+      tipo: "Inversión",
+      valor: item.inversión,
+    },
+    {
+      año: String(item.año),
+      tipo: "Beneficio",
+      valor: item.beneficio,
+    },
+  ]);
 
-  const dualConfig: any = {
-    data: dualData,
-    xField: "year",
+  const areaConfig = {
+    data: projectionChartData,
+    xField: "año",
     yField: "valor",
     seriesField: "tipo",
-    legend: { position: "top" as const },
-    smooth: true,
     color: ["#4B6BFD", "#00ff88"],
+    smooth: true,
+    legend: { position: "top" as const },
+    yAxis: {
+      label: {
+        formatter: (v: string) => `${euroM(Number(v))}€`,
+      },
+    },
   };
 
   const riskPorPais = data
@@ -293,20 +350,20 @@ export default function DashBoards() {
   };
 
   const invPorTipo = [
-    { tipo: "Natural", valor: inversionTotal * 0.2 },
-    { tipo: "Material", valor: inversionTotal * 0.6 },
-    { tipo: "Inmaterial", valor: inversionTotal * 0.2 },
-  ];
+    { tipo: "Natural", valor: investmentByType.natural },
+    { tipo: "Material", valor: investmentByType.material },
+    { tipo: "Inmaterial", valor: investmentByType.inmaterial },
+  ].filter(item => item.valor > 0);
 
   const pieConfig = {
-    data: invPorTipo,
+    data: invPorTipo.length > 0 ? invPorTipo : [{ tipo: "Sin datos", valor: 1 }],
     angleField: "valor",
     colorField: "tipo",
     radius: 0.9,
     innerRadius: 0.6,
     label: {
       type: "spider" as const,
-      formatter: (d: any) => `${d.tipo}: ${euroM(d.valor)}M€`,
+      formatter: (d: any) => `${d.tipo}: ${euroM(d.valor)}€`,
       style: { fill: "#fff" },
     },
     color: ["#00ff88", "#4B6BFD", "#FDB022"],
@@ -319,6 +376,7 @@ export default function DashBoards() {
       dataIndex: "país",
       key: "país",
       width: 150,
+      sorter: (a: any, b: any) => a.país.localeCompare(b.país, "es", { sensitivity: "base" }),
       render: (text: string) => (
         <span style={{ fontWeight: 800, color: "#00ff88" }}>{text}</span>
       ),
@@ -387,30 +445,32 @@ export default function DashBoards() {
   }
 
   return (
-    <PageContainer title="Dashboard Global – Optimización de Inversiones Climáticas">
+    <PageContainer title="Dashboard Europa (Global)">
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: "#00ff88" }}>
-              {euroM(inversionTotal)} €
+              {euroM(statsTotals?.totalInvestment ?? 0)} €
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
-              Inversión Total
+              Total Invertido
             </div>
           </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#4B6BFD" }}>
-              {statsTotals?.totalClusters ?? 0}
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#faad14" }}>
+              {euroM(inversionTotal)} €
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
-              Clusters
+              Inversión Sugerida
             </div>
           </div>
         </ProCard>
+
+        
 
         <ProCard colSpan={6} bordered style={cardStyle}>
           <div style={{ textAlign: "center" }}>
@@ -451,10 +511,10 @@ export default function DashBoards() {
           </div>
         </ProCard>
 
-        {/* Dual Axes Chart */}
+        {/* Proyección 10 años - Gráfico Area */}
         <ProCard colSpan={16} title="Proyección 10 años" bordered style={cardStyle}>
           <div style={{ height: 300 }}>
-            <DualAxes {...dualConfig} />
+            <Area {...areaConfig} />
           </div>
         </ProCard>
 

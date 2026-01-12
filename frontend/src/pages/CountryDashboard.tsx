@@ -195,6 +195,7 @@ export default function CountryDashboard() {
   const [risks, setRisks] = useState<RiskData[]>([]);
   const [shops, setShops] = useState<ShopWithCluster[]>([]);
   const [shopCoverageById, setShopCoverageById] = useState<Record<number, ShopCoverageComputed>>({});
+  const [dataVersion, setDataVersion] = useState(0);
 
   const [optCountryOpen, setOptCountryOpen] = useState(false);
   const [optShopOpen, setOptShopOpen] = useState(false);
@@ -207,7 +208,27 @@ export default function CountryDashboard() {
 
   useEffect(() => {
     loadCountryData();
-  }, [slug]);
+  }, [slug, dataVersion]);
+
+  // Listen for data changes from other dashboards
+  useEffect(() => {
+    const checkVersion = () => {
+      const version = parseInt(localStorage.getItem('dataVersion') || '0', 10);
+      if (version !== dataVersion) {
+        setDataVersion(version);
+      }
+    };
+
+    // Check on mount and when window regains focus
+    checkVersion();
+    window.addEventListener('focus', checkVersion);
+    window.addEventListener('storage', checkVersion);
+
+    return () => {
+      window.removeEventListener('focus', checkVersion);
+      window.removeEventListener('storage', checkVersion);
+    };
+  }, [dataVersion]);
 
   const loadCountryData = async () => {
     if (!slug) return;
@@ -345,8 +366,15 @@ export default function CountryDashboard() {
       const totalRisks = sumTotalRisks || risksArray.length;
       const resolvedRisks = sumTotalRisks ? sumCoveredRisks : risksArray.filter((r) => r.estado === "Resuelto").length;
       const pendingRisks = sumTotalRisks ? sumUncoveredRisks : (totalRisks - resolvedRisks);
-      const investmentShare = stats?.total_investment ?? 0;
-      const investment = Math.round(investmentShare * (totalShops / Math.max(stats?.total_shops ?? totalShops, 1)));
+      
+      // Inversión real: suma de inversiones sugeridas por tienda
+      const investment = Math.round(coverageValues.reduce((s, c) => s + c.suggestedInvestment, 0));
+      console.log('[CountryDashboard] Investment calculation:', {
+        totalShops,
+        coverageValuesCount: coverageValues.length,
+        investments: coverageValues.map(c => c.suggestedInvestment),
+        totalInvestment: investment
+      });
       const roi = (Math.max(0, 1 - avgRisk) * 12).toFixed(1);
       const improvedShops = sumTotalRisks
         ? Object.values(nextCoverageById).filter((c) => c.coveredRisks > 0).length
@@ -721,7 +749,7 @@ export default function CountryDashboard() {
           <StatisticCard
             statistic={{
               title: "Inversión Total",
-              value: `${euroM(countryData.inversión)} M€`,
+              value: `${euroM(countryData.inversión)} €`,
               valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
             }}
           />
@@ -751,7 +779,7 @@ export default function CountryDashboard() {
           <StatisticCard
             statistic={{
               title: "Beneficio Anual",
-              value: `${countryData.beneficioAnual.toFixed(1)} M€`,
+              value: `${euroM(countryData.beneficioAnual)} €`,
               valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
             }}
           />
