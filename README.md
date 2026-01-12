@@ -1,8 +1,128 @@
-# MANGO-PAE
+# MANGO-PAE — Climate Invest Optimizer
 
-Climate Investment Optimizer - A tool for managing climate risk mitigation measures across retail locations.
+Herramienta para gestionar y optimizar inversiones en medidas de mitigación de riesgos climáticos sobre una red de tiendas (retail locations).
 
-## API Endpoints
+## 👥 Autores
+
+- Eudald Pizarro Cami
+- David Morais Caldas
+- Marc Teixidó Sala
+- Èric Díez Apolo
+
+## 🧩 Estructura del repositorio
+
+Este monorepo tiene dos componentes principales:
+
+- `frontend/`: aplicación web (React + TypeScript + Vite)
+- `backend/`: API REST (Go) para datos, riesgos, medidas y optimización
+
+## 🚀 Inicio rápido
+
+### Frontend (Vite)
+
+Requisitos: Node.js 18+.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+El frontend queda disponible en `http://localhost:5173`.
+
+### Backend (Go)
+
+Requisitos:
+
+- Go 1.21+
+- PostgreSQL (o Supabase)
+
+```bash
+cd backend
+go mod tidy
+
+# (Opcional) configurar variables de entorno
+cp .env.example .env
+
+go run cmd/api/main.go
+```
+
+Por defecto la API queda en `http://localhost:8080` (dependiendo de `PORT`).
+
+## 🏗️ Arquitectura (Backend)
+
+El backend sigue principios de **Clean Architecture** con separación clara de responsabilidades:
+
+```
+backend/
+├── cmd/
+│   └── api/
+│       └── main.go              # Punto de entrada de la aplicación
+├── api/
+│   └── openapi.yaml             # Documentación OpenAPI/Swagger
+├── internal/
+│   ├── config/
+│   │   └── config.go            # Configuración de la aplicación
+│   ├── domain/
+│   │   ├── models/              # Entidades del dominio
+│   │   └── repository/          # Interfaces repositorios
+│   ├── application/
+│   │   └── services/            # Lógica de negocio
+│   ├── infrastructure/
+│   │   └── persistence/         # Implementaciones (Postgres, etc.)
+│   └── interfaces/
+│       └── http/                # Handlers, middleware, router
+└── data/
+    ├── measures.csv
+    └── risks.csv
+```
+
+### Modelo de datos
+
+Las tiendas (Shops) y clusters utilizan **coordenadas UTM** para la geolocalización:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `utm_north` | float64 | Coordenada UTM Norte |
+| `utm_east` | float64 | Coordenada UTM Este |
+
+## ⚙️ Variables de entorno (Backend)
+
+Ejemplo:
+
+```env
+# Servidor
+PORT=8080
+HOST=0.0.0.0
+
+# Base de datos (Supabase pooler - puerto 6543)
+# IMPORTANTE: Añadir ?default_query_exec_mode=exec para Supabase pooler
+DATABASE_URL=postgresql://postgres.xxx:password@xxx.pooler.supabase.com:6543/postgres?default_query_exec_mode=exec
+API_URL=https://your-project.supabase.co/rest/v1
+API_KEY=your-anon-key
+
+# JWT
+JWT_SECRET=your-256-bit-secret-key
+JWT_TOKEN_EXPIRY=24h
+
+# Aplicación
+APP_ENV=development
+DEBUG=true
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+## 📚 API Endpoints
+
+### Autenticación
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/login` | Iniciar sesión |
+| POST | `/api/v1/auth/register` | Registrar usuario |
+| POST | `/api/v1/auth/refresh` | Refrescar token |
+| GET | `/api/v1/auth/me` | Obtener usuario actual |
 
 ### Shops
 
@@ -16,9 +136,9 @@ Climate Investment Optimizer - A tool for managing climate risk mitigation measu
 | GET | `/api/v1/shops/:id/measures` | Get applied measures for a shop |
 | POST | `/api/v1/shops/:id/measures` | Apply measures to a shop |
 | DELETE | `/api/v1/shops/:id/measures/:measureName` | Remove a measure from a shop |
+| GET | `/api/v1/shops/:id/applicable-measures` | Get measures not yet applied to a shop |
 | GET | `/api/v1/shops/:id/risk-assessment` | Get risk assessment for a shop |
 | GET | `/api/v1/shops/:id/risk-coverage` | Get risk coverage status for a shop |
-| GET | `/api/v1/shops/:id/applicable-measures` | Get measures not yet applied to a shop |
 
 ### Clusters
 
@@ -34,6 +154,7 @@ Climate Investment Optimizer - A tool for managing climate risk mitigation measu
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/measures` | List all measures |
+| GET | `/api/v1/measures?type=natural` | Filter by type (backend) |
 | GET | `/api/v1/measures/:name` | Get measure by name |
 
 ### Risks
@@ -56,11 +177,66 @@ Climate Investment Optimizer - A tool for managing climate risk mitigation measu
 |--------|----------|-------------|
 | GET | `/api/v1/dashboard/stats` | Get dashboard statistics |
 
-## Risk Coverage Endpoint
+## 🧮 Algoritmo de Optimización
 
-The `/api/v1/shops/:id/risk-coverage` endpoint returns detailed information about which climate risks are covered by applied measures and which are not.
+El endpoint de optimización soporta tres estrategias:
 
-### Response Example
+### 1. Greedy (default)
+
+Complejidad: `O(n log n)`
+
+- Ordena medidas por eficiencia (reducción/costo)
+- Selecciona en orden hasta agotar presupuesto
+
+### 2. Knapsack
+
+Complejidad: `O(n × W)`
+
+- Programación dinámica
+- Garantiza solución óptima
+
+### 3. Weighted
+
+Complejidad: `O(n log n)`
+
+- Considera prioridades de riesgos
+- Greedy modificado con pesos
+
+### Ejemplo de request
+
+```json
+POST /api/v1/optimization/budget
+{
+  "shop_ids": [1, 2, 3],
+  "max_budget": 50000,
+  "strategy": "greedy",
+  "risk_priorities": [1, 5]
+}
+```
+
+## 🧪 Testing (Backend)
+
+```bash
+cd backend
+go test ./...
+```
+
+## 📄 OpenAPI
+
+La especificación está en `backend/api/openapi.yaml`.
+
+Puedes visualizarla con Swagger UI (Docker):
+
+```bash
+docker run -p 8081:8080 -e SWAGGER_JSON=/api/openapi.yaml \
+  -v $(pwd)/backend/api:/api swaggerapi/swagger-ui
+```
+
+## 🔎 Risk Coverage endpoint
+
+El endpoint `/api/v1/shops/:id/risk-coverage` devuelve información detallada sobre qué riesgos están cubiertos por medidas aplicadas y cuáles no.
+
+### Response example
 
 ```json
 {
@@ -112,19 +288,6 @@ The `/api/v1/shops/:id/risk-coverage` endpoint returns detailed information abou
 }
 ```
 
-### Response Fields
+## 📜 Licencia
 
-- `shop_id`: The ID of the shop
-- `shop_location`: The location name of the shop
-- `shop_country`: The country where the shop is located
-- `total_risks`: Total number of climate risks affecting the shop (via its cluster)
-- `covered_risks`: Number of risks that have at least one applied measure covering them
-- `uncovered_risks`: Number of risks with no applied measures covering them
-- `coverage_percentage`: Percentage of risks that are covered (0-100)
-- `risks`: Array of risk details:
-  - `risk_id`: Unique identifier of the risk
-  - `risk_name`: Name of the climate risk
-  - `risk_score`: Calculated risk score (0-1) based on exposure, sensitivity, consequence, and probability
-  - `is_covered`: Boolean indicating if any applied measure covers this risk
-  - `covering_measures`: Array of measures already applied that cover this risk
-  - `available_measures`: Array of measures not yet applied that could cover this risk
+Apache 2.0 License - ver `LICENSE` para detalles.

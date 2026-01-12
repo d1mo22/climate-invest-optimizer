@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useStores, type ParsedStore } from "../context/StoresContext";
+import { shopService } from "../services";
 
 /* ===== Utils texto ===== */
 const normalize = (s: string) =>
@@ -171,6 +172,16 @@ function redToGreen(t: number) {
   return rgbToHex(r, g, b);
 }
 
+function formatInvestmentCompact(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const trim = (s: string) => s.replace(/\.0$/, "");
+
+  if (abs >= 1_000_000) return `${trim((value / 1_000_000).toFixed(1))}m`;
+  if (abs >= 1_000) return `${trim((value / 1_000).toFixed(1))}k`;
+  return `${Math.round(value)}`;
+}
+
 /* ===== Afinidad N puntos (igual que en Map.tsx) ===== */
 
 function affineFromN(src: [number, number][], dst: [number, number][]) {
@@ -253,6 +264,9 @@ export default function CountryMap() {
 
   // inversión por tienda (para orden y display)
   const [invByIdState, setInvByIdState] = useState<Record<string, number>>({});
+
+  // tooltip hover tienda
+  const [hoverTooltip, setHoverTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
 
   // ordenación del sidebar
   const [sortBy, setSortBy] = useState<"inversion_desc" | "name_asc">(
@@ -364,7 +378,7 @@ export default function CountryMap() {
     (async () => {
       try {
         // Use data from context instead of CSV
-        const { stores, clusters, storeDetails } = storesCtx;
+        const { stores, clusters } = storesCtx;
 
         // Filter stores by country field from database
         const parsedStores = stores.filter((r) => {
@@ -382,33 +396,37 @@ export default function CountryMap() {
 
         setStoresList(parsedStores);
 
-        // Map id -> inversion (num)
+        // Map id -> inversión real (suma de costes de medidas aplicadas)
         const invById = new Map<string, number>();
-        storeDetails.forEach((d) => {
-          const inv = parseFloat(String(d.inversion ?? "").replace(",", "."));
-          if (!Number.isNaN(inv)) invById.set(String(d.id), inv);
-        });
+
+        // Evitar lanzar demasiadas requests a la vez.
+        const CHUNK = 10;
+        for (let i = 0; i < parsedStores.length; i += CHUNK) {
+          const batch = parsedStores.slice(i, i + CHUNK);
+          await Promise.all(
+            batch.map(async (s) => {
+              const idNum = Number(s.id);
+              if (!Number.isFinite(idNum)) return;
+              const measures = await shopService.getShopMeasures(idNum).catch(() => []);
+              const investment = (measures || []).reduce(
+                (sum, m) => sum + (typeof m.estimatedCost === "number" ? m.estimatedCost : 0),
+                0
+              );
+              invById.set(String(s.id), investment);
+            })
+          );
+        }
+
         setInvByIdState(Object.fromEntries(invById.entries()));
 
-        // Riesgo del país (solo tiendas aquí)
-        const riskById = new Map<string, number>();
-        parsedStores.forEach((s) => {
-          const r = typeof s.totalRisk === "number" && !Number.isNaN(s.totalRisk) ? s.totalRisk : 0;
-          riskById.set(String(s.id), r);
-        });
+        const invValues = Array.from(invById.values()).filter((v) => typeof v === "number" && Number.isFinite(v));
+        const maxInv = invValues.length ? Math.max(...invValues) : 0;
+        const minInv = invValues.length ? Math.min(...invValues) : 0;
 
-        const riskValues = Array.from(riskById.values()).filter((v) => typeof v === "number" && !Number.isNaN(v));
-        const maxRisk = riskValues.length ? Math.max(...riskValues) : 1;
-        const minRisk = riskValues.length ? Math.min(...riskValues) : 0;
-
-        // más riesgo => más rojo, menos riesgo => más verde
+        // más inversión => más rojo, menos inversión => más verde
         const colorForStore = (storeId: string) => {
-          const risk = riskById.get(String(storeId));
-          if (risk == null) return "#ff8c00"; // fallback naranja
-
-          // Normalizar por rango si hay variación, y si no, asumir [0..1]
-          const normalized = maxRisk !== minRisk ? (risk - minRisk) / (maxRisk - minRisk) : clamp01(risk);
-          // redToGreen(t): t=0 rojo, t=1 verde; para riesgo alto queremos rojo
+          const inv = invById.get(String(storeId)) ?? 0;
+          const normalized = maxInv !== minInv ? (inv - minInv) / (maxInv - minInv) : (maxInv > 0 ? inv / maxInv : 0);
           return redToGreen(1 - clamp01(normalized));
         };
 
@@ -529,8 +547,25 @@ export default function CountryMap() {
           const { x, y } = projectFromUTM(r.E, r.N);
 
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          g.setAttribute("data-store-id", String(r.id));
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
+
+          const storeName = r.location || r.name || `Tienda ${r.id}`;
+
+          const onEnter = (evt: Event) => {
+            const e = evt as PointerEvent;
+            setHoverTooltip({ name: storeName, x: e.clientX, y: e.clientY });
+          };
+          const onMove = (evt: Event) => {
+            const e = evt as PointerEvent;
+            setHoverTooltip((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : { name: storeName, x: e.clientX, y: e.clientY }));
+          };
+          const onLeave = () => setHoverTooltip(null);
+
+          g.addEventListener("pointerenter", onEnter);
+          g.addEventListener("pointermove", onMove);
+          g.addEventListener("pointerleave", onLeave);
 
           storesRef.current.push(g);
           g.style.display = showStores ? "" : "none";
@@ -551,8 +586,8 @@ export default function CountryMap() {
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("d", PIN_PATH_D);
           path.setAttribute("fill", colorForStore(r.id));
-          path.setAttribute("stroke", "#ffffff");
-          path.setAttribute("stroke-width", "15");
+          path.setAttribute("stroke", "#000000");
+          path.setAttribute("stroke-width", "35");
 
           gIcon.appendChild(path);
           svgIcon.appendChild(gIcon);
@@ -691,7 +726,6 @@ export default function CountryMap() {
     let lastCam: DOMPoint | null = null;
 
     const onPointerDown = (e: PointerEvent) => {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
       isPanning = true;
       lastCam = toCameraSpace(getSvgPoint(e));
       svg.style.cursor = "grabbing";
@@ -704,8 +738,7 @@ export default function CountryMap() {
       lastCam = nowCam;
       scheduleRender();
     };
-    const onPointerUp = (e: PointerEvent) => {
-      (e.target as Element).releasePointerCapture?.(e.pointerId);
+    const onPointerUp = () => {
       isPanning = false;
       lastCam = null;
       svg.style.cursor = "default";
@@ -716,6 +749,7 @@ export default function CountryMap() {
     svg.addEventListener("pointermove", onPointerMove);
     svg.addEventListener("pointerup", onPointerUp);
     svg.addEventListener("pointerleave", onPointerUp);
+    svg.addEventListener("pointercancel", onPointerUp);
 
     const refit = () => {
       z = 1;
@@ -737,9 +771,10 @@ export default function CountryMap() {
       svg.removeEventListener("pointermove", onPointerMove as EventListener);
       svg.removeEventListener("pointerup", onPointerUp as EventListener);
       svg.removeEventListener("pointerleave", onPointerUp as EventListener);
+      svg.removeEventListener("pointercancel", onPointerUp as EventListener);
       window.removeEventListener("resize", onResize);
     };
-  }, [slug, state?.name, refitTick, navigate, showRadius, showStores]);
+  }, [slug, state?.name, refitTick, navigate, showRadius, showStores, storesCtx]);
 
   useEffect(() => {
     radiusCirclesRef.current.forEach((circle) => {
@@ -782,6 +817,29 @@ export default function CountryMap() {
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      {hoverTooltip && (
+        <div
+          style={{
+            position: "fixed",
+            left: hoverTooltip.x + 12,
+            top: hoverTooltip.y + 12,
+            zIndex: 50,
+            background: "rgba(0,0,0,0.85)",
+            color: "#fff",
+            padding: "6px 8px",
+            borderRadius: 6,
+            fontSize: 12,
+            pointerEvents: "none",
+            maxWidth: 260,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          {hoverTooltip.name}
+        </div>
+      )}
       {/* Controles */}
       <div
         style={{
@@ -888,7 +946,7 @@ export default function CountryMap() {
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {sortedStores.map((s) => {
                 const inv = invByIdState[String(s.id)];
-                const invText = Number.isFinite(inv) ? inv.toFixed(2) : "—";
+                const invText = formatInvestmentCompact(inv);
 
                 return (
                   <li
