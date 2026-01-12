@@ -68,3 +68,26 @@ export const getPctColor = (pct: number): string =>
     : pct >= 0.5
       ? colors.status.warning
       : colors.status.error;
+
+// Picks a readable foreground color for a given background.
+// Works best with hex colors like #RRGGBB.
+export const getReadableTextColor = (
+  background: string,
+  opts: { light?: string; dark?: string } = {}
+): string => {
+  const light = opts.light ?? "#ffffff";
+  const dark = opts.dark ?? colors.background.primary;
+
+  const hex = (background || "").trim();
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return light;
+
+  const value = m[1];
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+
+  // YIQ perceived brightness
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 160 ? dark : light;
+};

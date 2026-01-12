@@ -2,8 +2,10 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/d1mo22/climate-invest-optimizer/backend/internal/application/services"
 	"github.com/d1mo22/climate-invest-optimizer/backend/internal/domain/models"
@@ -231,11 +233,13 @@ func (h *ShopHandler) RemoveMeasure(c *gin.Context) {
 		return
 	}
 
-	measureName := c.Param("measureName")
+	measureName := strings.TrimPrefix(c.Param("measureName"), "/")
 	if measureName == "" {
 		respondWithError(c, models.ErrInvalidInput("Nombre de medida requerido"))
 		return
 	}
+
+	log.Printf("[SHOP] RemoveMeasure hit | shop_id=%d | measure=%q", id, measureName)
 
 	if err := h.shopService.RemoveMeasure(c.Request.Context(), id, measureName); err != nil {
 		respondWithError(c, err)

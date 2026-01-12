@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,7 +22,18 @@ type Config struct {
 
 // NewConnection crea una nueva conexión a la base de datos
 func NewConnection(cfg Config) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.URL)
+	// Para poolers (Supabase/PgBouncer en modo transacción), evitamos prepared statements
+	// usando default_query_exec_mode=simple_protocol
+	dsn := cfg.URL
+	if !strings.Contains(dsn, "default_query_exec_mode=") {
+		sep := "?"
+		if strings.Contains(dsn, "?") {
+			sep = "&"
+		}
+		dsn = dsn + sep + "default_query_exec_mode=simple_protocol"
+	}
+
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

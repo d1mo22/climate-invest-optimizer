@@ -72,7 +72,9 @@ func Setup(r *gin.Engine, cfg *Config) {
 				// Medidas de una tienda
 				shops.GET("/:id/measures", cfg.ShopHandler.GetAppliedMeasures)
 				shops.POST("/:id/measures", cfg.ShopHandler.ApplyMeasures)
-				shops.DELETE("/:id/measures/:measureName", cfg.ShopHandler.RemoveMeasure)
+				// Soportar nombres con '/' (p.ej. "costera/fluvial/pluvial").
+				// Nota: Gin no permite coexistir '*measureName' con ':measureName' en el mismo prefijo.
+				shops.DELETE("/:id/measures/*measureName", cfg.ShopHandler.RemoveMeasure)
 
 				// Evaluación de riesgos
 				shops.GET("/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)
@@ -191,7 +193,9 @@ func SetupSimple(r *gin.Engine, cfg *Config) {
 		v1.DELETE("/shops/:id", cfg.ShopHandler.Delete)
 		v1.GET("/shops/:id/measures", cfg.ShopHandler.GetAppliedMeasures)
 		v1.POST("/shops/:id/measures", cfg.ShopHandler.ApplyMeasures)
-		v1.DELETE("/shops/:id/measures/:measureName", cfg.ShopHandler.RemoveMeasure)
+		// Soportar nombres con '/' (p.ej. "costera/fluvial/pluvial").
+		// Nota: Gin no permite coexistir '*measureName' con ':measureName' en el mismo prefijo.
+		v1.DELETE("/shops/:id/measures/*measureName", cfg.ShopHandler.RemoveMeasure)
 		v1.GET("/shops/:id/risk-assessment", cfg.ShopHandler.GetRiskAssessment)
 		v1.GET("/shops/:id/risk-coverage", cfg.ShopHandler.GetRiskCoverage)
 		v1.GET("/shops/:id/applicable-measures", cfg.MeasureHandler.GetApplicableForShop)

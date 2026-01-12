@@ -1,3 +1,11 @@
+// Re-export service types
+export type { Shop, ShopWithCluster, ShopMeasure, RiskAssessment } from '../services/shopService';
+export type { Cluster, ClusterWithRisks, ClusterRisk } from '../services/clusterService';
+export type { Risk as RiskData, RiskWithMeasures } from '../services/riskService';
+export type { Measure } from '../services/measureService';
+export type { OptimizationRequest, OptimizationResult } from '../services/optimizationService';
+export type { DashboardStats } from '../services/dashboardService';
+
 // Tipos de datos de país
 export type CountryData = {
   key: number;
@@ -16,7 +24,7 @@ export type CountryData = {
   plan10y: number;
 };
 
-// Tipos CSV
+// Tipos CSV (legacy - for backwards compatibility)
 export type CsvRow = {
   id: string;
   name: string;
@@ -70,4 +78,8 @@ export type MapTooltip = {
 export type ParsedStore = CsvRow & {
   N: number;
   E: number;
+  location?: string;
+  cluster_id?: number;
+  totalRisk?: number;
 };
+

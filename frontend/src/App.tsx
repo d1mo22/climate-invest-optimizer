@@ -7,6 +7,8 @@ import Home from "./pages/Home";
 import Map from "./pages/Map";
 import Dashboards from "./pages/DashBoards";
 import CountryMap from "./pages/CountryMap";
+import CountryDashboard from "./pages/CountryDashboard";
+import StoreDashboard from "./pages/StoreDashboard";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -28,6 +30,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         {/* Country CON layout */}
         <Route path="/country/:slug" element={<AppLayout />}>
           <Route index element={<CountryMap />} />
+        </Route>
+
+        {/* Country Dashboard CON layout */}
+        <Route path="/dashboard/:slug" element={<AppLayout />}>
+          <Route index element={<CountryDashboard />} />
+        </Route>
+
+        {/* Store Dashboard CON layout */}
+        <Route path="/store/:storeSlug" element={<AppLayout />}>
+          <Route index element={<StoreDashboard />} />
         </Route>
 
         {/* 404 (opcional) */}

@@ -19,6 +19,7 @@ import { BudgetProvider } from "./context/BudgetContext";
 import { StoresProvider } from "./context/StoresContext";
 
 import "antd/dist/reset.css";
+import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

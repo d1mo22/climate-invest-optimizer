@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/d1mo22/climate-invest-optimizer/backend/internal/domain/models"
+	"github.com/d1mo22/climate-invest-optimizer/backend/internal/domain/repository"
 )
 
 // ShopRepository implementa repository.ShopRepository para PostgreSQL
@@ -184,10 +185,10 @@ func (r *ShopRepository) List(ctx context.Context, filter *models.ShopFilterRequ
 	orderClause := " ORDER BY id"
 	if filter != nil && filter.SortBy != "" {
 		validColumns := map[string]string{
-			"id":        "id",
-			"location":  "location",
-			"risk":      `"totalRisk"`,
-			"surface":   "surface",
+			"id":       "id",
+			"location": "location",
+			"risk":     `"totalRisk"`,
+			"surface":  "surface",
 		}
 		if col, ok := validColumns[filter.SortBy]; ok {
 			orderClause = fmt.Sprintf(" ORDER BY %s", col)
@@ -352,9 +353,14 @@ func (r *ShopRepository) GetAppliedMeasures(ctx context.Context, shopID int64) (
 // ApplyMeasure aplica una medida a una tienda
 func (r *ShopRepository) ApplyMeasure(ctx context.Context, shopID int64, measureName string) error {
 	query := `INSERT INTO "Shop_measure" (shop_id, measure_name) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-	_, err := r.db.ExecContext(ctx, query, shopID, measureName)
+	result, err := r.db.ExecContext(ctx, query, shopID, measureName)
 	if err != nil {
 		return fmt.Errorf("failed to apply measure: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return repository.ErrMeasureAlreadyAppliedToShop
 	}
 	return nil
 }
@@ -368,7 +374,7 @@ func (r *ShopRepository) RemoveMeasure(ctx context.Context, shopID int64, measur
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("measure not applied to this shop")
+		return repository.ErrMeasureNotAppliedToShop
 	}
 	return nil
 }

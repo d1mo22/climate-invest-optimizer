@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import MapSVG from "../assets/europe.svg?react";
 import { useNavigate } from "react-router-dom";
-import "../index.css";
 
 // Utilidades consolidadas
 import { slugify } from "../utils/slugify";
@@ -14,13 +13,16 @@ import {
   PIN_PATH_D,
   getMarkerColor,
 } from "../utils/mapIcons";
-import { fetchClusters } from "../services/csvService";
+import { useStores } from "../context/StoresContext";
 import type { MapTooltip } from "../types";
 
 export default function Map() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [tip, setTip] = useState<MapTooltip>(null);
+  
+  // Use stores context instead of fetching CSV
+  const { clusters, loading: loadingStores } = useStores();
 
   // Estado del toggle para mostrar radios de clusters
   const [showRadius, setShowRadius] = useState(false);
@@ -88,16 +90,11 @@ export default function Map() {
     };
     svg.addEventListener("click", onDebugClick);
 
-    // ========== 4) CARGAR CSV (UTM) Y PINTAR ==========
+    // ========== 4) PINTAR CLUSTERS (desde contexto) ==========
+    if (loadingStores) return;
+    
     (async () => {
-      const rows = await fetchClusters();
-
-      const parsed = rows
-        .map((r) => ({
-          ...r,
-          N: parseFloat(r.utm_north),
-          E: parseFloat(r.utm_east),
-        }))
+      const parsed = clusters
         .filter((r) => !Number.isNaN(r.N) && !Number.isNaN(r.E));
 
       if (!parsed.length) {
@@ -301,6 +298,9 @@ export default function Map() {
       enter: EventListener;
       move: EventListener;
       leave: EventListener;
+      click: EventListener;
+      hoverFillEnter: EventListener;
+      hoverFillLeave: EventListener;
     }> = [];
 
     paths.forEach((el) => {
@@ -310,8 +310,9 @@ export default function Map() {
       const enter = onEnter(p);
       const move = onMove(p);
       const leave = onLeave(p);
-      const onClick = (e: MouseEvent) => {
-        if (e.altKey) return;
+      const click: EventListener = (e: Event) => {
+        const me = e as MouseEvent;
+        if (me.altKey) return;
         const name = p.getAttribute("name") || "";
         const slug = slugify(name);
         navigate(`/country/${slug}`, { state: { name } });
@@ -319,11 +320,18 @@ export default function Map() {
       p.addEventListener("mouseenter", enter);
       p.addEventListener("mousemove", move);
       p.addEventListener("mouseleave", leave);
-      p.addEventListener("click", onClick);
-      listeners.push({ p, enter, move, leave });
+      p.addEventListener("click", click);
 
-      p.addEventListener("mouseenter", () => (p.style.fill = "#b6ffe1"));
-      p.addEventListener("mouseleave", () => (p.style.fill = ""));
+      const hoverFillEnter = () => {
+        p.style.fill = "#b6ffe1";
+      };
+      const hoverFillLeave = () => {
+        p.style.fill = "";
+      };
+      p.addEventListener("mouseenter", hoverFillEnter);
+      p.addEventListener("mouseleave", hoverFillLeave);
+
+      listeners.push({ p, enter, move, leave, click, hoverFillEnter, hoverFillLeave });
     });
 
     // ---------- 6) Zoom + Pan ----------
@@ -331,12 +339,29 @@ export default function Map() {
     const MAX_SCALE = 6;
     const ZOOM_STEP = 0.1;
 
+    const DRAG_THRESHOLD_PX = 3;
+    let suppressNextClick = false;
+
     let scale = 1;
     let tx = 0;
     let ty = 0;
 
     let isPanning = false;
     let startPt: DOMPoint | null = null;
+    let downClient: { x: number; y: number } | null = null;
+    let didDrag = false;
+
+    // Captura el click antes de que llegue al path del país.
+    // Así evitamos navegación cuando el gesto real fue arrastrar.
+    const onSvgClickCapture = (e: MouseEvent) => {
+      if (!suppressNextClick) return;
+      suppressNextClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      // stopImmediatePropagation existe en Event, pero TS puede no inferirlo aquí.
+      (e as any).stopImmediatePropagation?.();
+    };
+    svg.addEventListener("click", onSvgClickCapture, true);
 
     const applyTransform = () => {
       viewport!.setAttribute(
@@ -366,11 +391,23 @@ export default function Map() {
       (e.target as Element).setPointerCapture?.(e.pointerId);
       isPanning = true;
       startPt = getSvgPoint(e);
+      downClient = { x: e.clientX, y: e.clientY };
+      didDrag = false;
+      suppressNextClick = false;
       svg.style.cursor = "grabbing";
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isPanning || !startPt) return;
+
+      if (downClient && !didDrag) {
+        const dx = e.clientX - downClient.x;
+        const dy = e.clientY - downClient.y;
+        if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+          didDrag = true;
+        }
+      }
+
       const pt = getSvgPoint(e);
       tx += pt.x - startPt.x;
       ty += pt.y - startPt.y;
@@ -380,8 +417,15 @@ export default function Map() {
 
     const onPointerUp = (e: PointerEvent) => {
       (e.target as Element).releasePointerCapture?.(e.pointerId);
+
+      // Si ha habido arrastre, suprimimos el click que se dispara al soltar.
+      if (didDrag) {
+        suppressNextClick = true;
+      }
+
       isPanning = false;
       startPt = null;
+      downClient = null;
       svg.style.cursor = "default";
     };
 
@@ -397,10 +441,18 @@ export default function Map() {
         p.removeEventListener("mouseenter", enter);
         p.removeEventListener("mousemove", move);
         p.removeEventListener("mouseleave", leave);
+        // Los handlers de click y hover-fill se registran por elemento, hay que quitarlos también.
+        // (En StrictMode, si no se limpian, se duplican y navega 2 veces por click.)
+      });
+      listeners.forEach(({ p, click, hoverFillEnter, hoverFillLeave }) => {
+        p.removeEventListener("click", click);
+        p.removeEventListener("mouseenter", hoverFillEnter);
+        p.removeEventListener("mouseleave", hoverFillLeave);
       });
       overlay && (overlay.innerHTML = "");
 
       svg.removeEventListener("click", onDebugClick as EventListener);
+      svg.removeEventListener("click", onSvgClickCapture as EventListener, true);
       svg.removeEventListener("wheel", onWheel as EventListener);
       svg.removeEventListener("pointerdown", onPointerDown as EventListener);
       svg.removeEventListener("pointermove", onPointerMove as EventListener);
