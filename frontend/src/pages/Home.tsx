@@ -45,8 +45,7 @@ export default function Home() {
           maxWidth: 720,
           borderRadius: 24,
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)",
-          border: "1px solid rgba(255,255,255,0.12)",
+            "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%)", border: "1px solid rgba(255,255,255,0.12)",
           boxShadow: "0 22px 70px rgba(0,0,0,0.50)",
           padding: "32px 28px",
           position: "relative",
@@ -65,7 +64,9 @@ export default function Home() {
           <img
             src="/data/logo3.png"
             alt="RiskGuard"
-            style={{ width: 140, height: 140, objectFit: "contain" }}
+            style={{
+              width: 140, height: 140, objectFit: "contain", filter: "drop-shadow(0 0 15px rgba(255,255,255,0.4))"
+            }}
           />
 
           <div>
@@ -78,7 +79,7 @@ export default function Home() {
                 maxWidth: 520,
               }}
             >
-              Optimiza tu presupuesto cumpliendo normativa y taxonomía europea. 
+              Optimiza tu presupuesto cumpliendo normativa y taxonomía europea.
               Prioriza medidas, calcula impacto y decide en tiempo real con datos claros.
             </p>
           </div>

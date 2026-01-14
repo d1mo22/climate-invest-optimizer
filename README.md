@@ -291,3 +291,11 @@ El endpoint `/api/v1/shops/:id/risk-coverage` devuelve información detallada so
 ## 📜 Licencia
 
 Apache 2.0 License - ver `LICENSE` para detalles.
+
+
+Puedes aplicar el estilo de ver mapa del dashboard global al de pais tambien, el Ver Mapa del country no funcoina  
+sale este error (No se encontró el país para slug "espana". El error se recrea, primero yendo al dashboard      
+global y luego en la parte de abajo donde aparecen los paises hacer click en espana y sale este error). Tambien  
+cuando voy a ver las medidas que hay para afrontar un riesgo me sale una lista muy larga. Puedes hacer que       
+aparezcan 5 o 10 y que los demas tenga una flecha para ver los 10 siguientes y un buscador para buscar por       
+palabras.    

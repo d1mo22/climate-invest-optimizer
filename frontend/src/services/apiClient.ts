@@ -56,8 +56,12 @@ class ApiClient {
     }
 
     const method = (fetchOptions.method || 'GET').toUpperCase();
-    if (IS_DEBUG || method === 'DELETE') {
+    // Always log POST requests for debugging
+    if (IS_DEBUG || method === 'DELETE' || method === 'POST') {
       console.log(`[API] ${method} ${url}`);
+      if (fetchOptions.body) {
+        console.log(`[API] Body:`, fetchOptions.body);
+      }
     }
 
     try {
@@ -66,11 +70,14 @@ class ApiClient {
         headers: requestHeaders,
       });
 
+      console.log(`[API] Response status: ${response.status}`);
+
       // Handle non-2xx responses
       if (!response.ok) {
         let errorData;
         try {
           errorData = await response.json();
+          console.log(`[API] Error data:`, errorData);
         } catch {
           errorData = { message: response.statusText };
         }
@@ -88,6 +95,7 @@ class ApiClient {
       }
 
       const data = await response.json();
+      console.log(`[API] Response data:`, data);
 
       // Unwrap standard API response shape { success, data, message }
       if (data && typeof data === 'object' && 'data' in data) {

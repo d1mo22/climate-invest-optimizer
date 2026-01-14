@@ -222,8 +222,10 @@ export default function Map() {
           "path"
         );
         path.setAttribute("d", PIN_PATH_D);
-        path.setAttribute("fill", getMarkerColor(r.name));
-        path.setAttribute("stroke", "#111");
+        const markerColor = getMarkerColor(r.name);
+        path.setAttribute("fill", markerColor);
+        // Si el fill es transparente, también ocultar el stroke
+        path.setAttribute("stroke", markerColor === "transparent" ? "transparent" : "#111");
         path.setAttribute("stroke-width", "40");
 
         gIcon.appendChild(path);

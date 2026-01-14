@@ -327,6 +327,8 @@ func (s *optimizationService) estimateRiskReduction(measure models.Measure, risk
 		baseReduction = 0.10 // 10% de reducción base
 	case models.MeasureTypeImmaterial:
 		baseReduction = 0.03 // 3% de reducción base
+	default:
+		baseReduction = 0.02 // 2% default reduction for unknown types to avoid exclusion
 	}
 
 	// Ajustar por el riesgo actual (más reducción si el riesgo es alto)

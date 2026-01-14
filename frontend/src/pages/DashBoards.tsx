@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { slugify } from "../utils/slugify";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, dashboardService } from "../services";
-import { Spin, Alert } from "antd";
+import { Spin, Alert, Button } from "antd";
+import { EnvironmentOutlined } from "@ant-design/icons";
 import { computeSuggestedInvestment } from "../utils/suggestedInvestment";
 
 // Mapeo de nombres en inglés a español (la BD tiene los países en inglés)
@@ -88,6 +89,7 @@ export default function DashBoards() {
   } | null>(null);
   const [investmentByType, setInvestmentByType] = useState({ natural: 0, material: 0, inmaterial: 0 });
   const [dataVersion, setDataVersion] = useState(0);
+  const [visibleCountriesCount, setVisibleCountriesCount] = useState(5);
 
   useEffect(() => {
     loadDashboardData();
@@ -367,7 +369,31 @@ export default function DashBoards() {
       style: { fill: "#fff" },
     },
     color: ["#00ff88", "#4B6BFD", "#FDB022"],
-    legend: { position: "bottom" as const },
+    legend: {
+      position: "bottom" as const,
+      itemName: {
+        style: { fill: "#fff" },
+      },
+    },
+    statistic: {
+      title: {
+        style: {
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: 600,
+          textAlign: "center",
+        },
+        content: "Total",
+      },
+      content: {
+        style: {
+          color: "#fff",
+          fontSize: "20px",
+          fontWeight: 800,
+          textAlign: "center",
+        },
+      },
+    },
   };
 
   const columns: any[] = [
@@ -445,7 +471,19 @@ export default function DashBoards() {
   }
 
   return (
-    <PageContainer title="Dashboard Europa (Global)">
+    <PageContainer
+      title="Dashboard Europa (Global)"
+      extra={[
+        <Button
+          key="map"
+          icon={<EnvironmentOutlined />}
+          onClick={() => navigate("/map")}
+          style={{ backgroundColor: "#00ff88", borderColor: "#00ff88", color: "#000" }}
+        >
+          Ver Mapa
+        </Button>,
+      ]}
+    >
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>
@@ -510,6 +548,72 @@ export default function DashBoards() {
             <Column {...columnConfig} />
           </div>
         </ProCard>
+
+        {/* Países con riesgos pendientes - mostrar después del progreso */}
+        {(() => {
+          const countriesWithRisks = data
+            .filter(r => r.pctCobertura < 100 && r.tiendasTotales > 0)
+            .sort((a, b) => a.pctCobertura - b.pctCobertura);
+          const visibleCountries = countriesWithRisks.slice(0, visibleCountriesCount);
+          const hasMore = countriesWithRisks.length > visibleCountriesCount;
+
+          return countriesWithRisks.length > 0 && (
+            <ProCard colSpan={24} title={`⚠️ Países con Riesgos Pendientes (${countriesWithRisks.length})`} bordered style={{...cardStyle, borderColor: "#ff4d4f"}}>
+              <div style={{ padding: 16 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                  {visibleCountries.map((country) => (
+                    <div
+                      key={country.key}
+                      style={{
+                        padding: 12,
+                        background: "rgba(255,77,79,0.1)",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,77,79,0.3)",
+                        minWidth: 200,
+                        flex: "1 1 200px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => navigate(`/dashboard/${slugify(country.país)}`)}
+                    >
+                      <div style={{ fontWeight: 800, color: "#ff4d4f", marginBottom: 4 }}>
+                        {country.país}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#999" }}>
+                        Cobertura: <span style={{ color: country.pctCobertura < 50 ? "#ff4d4f" : "#faad14" }}>{country.pctCobertura.toFixed(1)}%</span>
+                        {" · "}
+                        Tiendas: {country.tiendasTotales}
+                        {" · "}
+                        Alto riesgo: <span style={{ color: "#ff4d4f" }}>{country.tiendasAltoRiesgo}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div style={{ textAlign: "center", marginTop: 12 }}>
+                    <Button
+                      type="link"
+                      onClick={() => setVisibleCountriesCount(prev => prev + 5)}
+                      style={{ color: "#ff4d4f" }}
+                    >
+                      Ver más países ({countriesWithRisks.length - visibleCountriesCount} restantes)
+                    </Button>
+                  </div>
+                )}
+                {visibleCountriesCount > 5 && (
+                  <div style={{ textAlign: "center", marginTop: 4 }}>
+                    <Button
+                      type="link"
+                      onClick={() => setVisibleCountriesCount(5)}
+                      style={{ color: "#999" }}
+                    >
+                      Mostrar menos
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ProCard>
+          );
+        })()}
 
         {/* Proyección 10 años - Gráfico Area */}
         <ProCard colSpan={16} title="Proyección 10 años" bordered style={cardStyle}>

@@ -19,9 +19,9 @@ const (
 type MeasureType string
 
 const (
-	MeasureTypeNatural    MeasureType = "natural"
-	MeasureTypeMaterial   MeasureType = "material"
-	MeasureTypeImmaterial MeasureType = "immaterial"
+	MeasureTypeNatural    MeasureType = "Natural"
+	MeasureTypeMaterial   MeasureType = "Material"
+	MeasureTypeImmaterial MeasureType = "Immaterial"
 )
 
 // Shop representa un inmueble/tienda en el sistema

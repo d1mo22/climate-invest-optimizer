@@ -46,6 +46,14 @@ export const optimizationService = {
   optimizeBudget: async (
     request: OptimizationRequest
   ): Promise<OptimizationResult> => {
-    return apiClient.post(API_ENDPOINTS.OPTIMIZE_BUDGET, request);
+    console.log("optimizationService.optimizeBudget called with:", request);
+    try {
+      const result = await apiClient.post<OptimizationResult>(API_ENDPOINTS.OPTIMIZE_BUDGET, request);
+      console.log("optimizationService.optimizeBudget result:", result);
+      return result;
+    } catch (error) {
+      console.error("optimizationService.optimizeBudget error:", error);
+      throw error;
+    }
   },
 };

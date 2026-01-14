@@ -2,11 +2,10 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
   PageContainer,
   ProCard,
-  StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
-import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Tooltip, Typography, message } from "antd";
-import { RedoOutlined, ThunderboltOutlined, UploadOutlined } from "@ant-design/icons";
+import { Button, Progress, Spin, Alert, Tag, Modal, Popconfirm, List, Tooltip, Typography, message, Input, Pagination } from "antd";
+import { RedoOutlined, ThunderboltOutlined, UploadOutlined, SearchOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { Gauge, Column, Pie, Area } from "@ant-design/plots";
 import { shopService, riskService } from "../services";
@@ -217,6 +216,11 @@ export default function StoreDashboard() {
   const [riskMeasuresCache, setRiskMeasuresCache] = useState<Record<number, Measure[]>>({});
   const [applyingMeasureName, setApplyingMeasureName] = useState<string | null>(null);
   const [removingMeasureName, setRemovingMeasureName] = useState<string | null>(null);
+
+  // Paginación y búsqueda para modal de medidas por riesgo
+  const [measureSearchTerm, setMeasureSearchTerm] = useState("");
+  const [measureCurrentPage, setMeasureCurrentPage] = useState(1);
+  const MEASURES_PAGE_SIZE = 5;
 
   const [optOpen, setOptOpen] = useState(false);
 
@@ -470,8 +474,8 @@ export default function StoreDashboard() {
       // Refrescar medidas aplicadas y cobertura desde backend (fuente de verdad)
       const [updatedMeasures, updatedCoverage] = await Promise.all([
         shopService.getShopMeasures(storeData.id).catch(() => {
-        // Si falla, al menos reflejamos localmente el cambio
-        return [...(storeData.measures || []), m];
+          // Si falla, al menos reflejamos localmente el cambio
+          return [...(storeData.measures || []), m];
         }),
         shopService.getRiskCoverage(storeData.id).catch(() => null),
       ]);
@@ -546,8 +550,8 @@ export default function StoreDashboard() {
       const [updatedMeasures, updatedCoverage] = await Promise.all([
         canCallApi
           ? shopService.getShopMeasures(storeData.id).catch(() => {
-              return (storeData.measures || []).filter((mm) => mm.name !== m.name);
-            })
+            return (storeData.measures || []).filter((mm) => mm.name !== m.name);
+          })
           : Promise.resolve((storeData.measures || []).filter((mm) => mm.name !== m.name)),
         canCallApi ? shopService.getRiskCoverage(storeData.id).catch(() => null) : Promise.resolve(null),
       ]);
@@ -664,20 +668,45 @@ export default function StoreDashboard() {
   }, [parsed?.riesgosResueltos, parsed?.riesgosPendientes]);
 
   const riskTypeConfig = useMemo(() => {
-    if (!storeData?.risks) {
-      return {
-        data: [],
-        angleField: "cantidad",
-        colorField: "tipo",
-        radius: 0.9,
-        innerRadius: 0.6,
-        label: {
-          type: "spider" as const,
-          formatter: (datum: any) => `${datum.tipo}: ${datum.cantidad}`,
+    const baseConfig = {
+      angleField: "cantidad",
+      colorField: "tipo",
+      radius: 0.9,
+      innerRadius: 0.6,
+      label: {
+        type: "spider" as const,
+        formatter: (datum: any) => `${datum.tipo}: ${datum.cantidad}`,
+        style: { fill: "#fff" },
+      },
+      legend: {
+        position: "bottom" as const,
+        itemName: {
           style: { fill: "#fff" },
         },
-        legend: { position: "bottom" as const },
-      };
+      },
+      statistic: {
+        title: {
+          style: {
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 600,
+            textAlign: "center",
+          },
+          content: "Total",
+        },
+        content: {
+          style: {
+            color: "#fff",
+            fontSize: "20px",
+            fontWeight: 800,
+            textAlign: "center",
+          },
+        },
+      },
+    };
+
+    if (!storeData?.risks) {
+      return { ...baseConfig, data: [] };
     }
 
     const riskTypeData = storeData.risks.reduce((acc, risk) => {
@@ -691,19 +720,7 @@ export default function StoreDashboard() {
       return acc;
     }, [] as Array<{ tipo: string; cantidad: number }>);
 
-    return {
-      data: riskTypeData,
-      angleField: "cantidad",
-      colorField: "tipo",
-      radius: 0.9,
-      innerRadius: 0.6,
-      label: {
-        type: "spider" as const,
-        formatter: (datum: any) => `${datum.tipo}: ${datum.cantidad}`,
-        style: { fill: "#fff" },
-      },
-      legend: { position: "bottom" as const },
-    };
+    return { ...baseConfig, data: riskTypeData };
   }, [storeData?.risks]);
 
   const areaConfig = useMemo(() => {
@@ -995,7 +1012,7 @@ export default function StoreDashboard() {
       title={`Tienda: ${storeData.tienda}`}
       subTitle={storeData.pais}
       extra={[
-        <Button key="back" onClick={() => navigate(`/country/${countrySlug}`)}>
+        <Button key="back" onClick={() => navigate(`/dashboard/${countrySlug}`)}>
           ← País
         </Button>,
         <Button
@@ -1025,43 +1042,47 @@ export default function StoreDashboard() {
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Inversión Total",
-              value: `${parsed.inversion.toFixed(1)}k €`,
-              valueStyle: { color: "#00ff88", fontSize: 22, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#00ff88" }}>
+              {parsed.inversion.toFixed(1)}k €
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Inversión Total
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "ROI Esperado",
-              value: `${parsed.roi}%`,
-              valueStyle: { color: "#4B6BFD", fontSize: 22, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#4B6BFD" }}>
+              {parsed.roi}%
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              ROI Esperado
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Riesgo Total",
-              value: storeData.totalRisk?.toFixed(1) || "N/A",
-              valueStyle: { color: "#ff4d4f", fontSize: 22, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#ff4d4f" }}>
+              {storeData.totalRisk?.toFixed(1) || "N/A"}
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Riesgo Total
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Beneficio Anual",
-              value: `${parsed.beneficioAnual.toFixed(1)}k €`,
-              valueStyle: { color: "#00ff88", fontSize: 22, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#00ff88" }}>
+              {parsed.beneficioAnual.toFixed(1)}k €
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Beneficio Anual
+            </div>
+          </div>
         </ProCard>
 
         {/* Progress Card */}
@@ -1087,6 +1108,33 @@ export default function StoreDashboard() {
             </div>
           </div>
         </ProCard>
+
+        {/* Pending Risks - mostrar justo después del progreso */}
+        {pendingRisks.length > 0 && (
+          <ProCard colSpan={24} title="⚠️ Riesgos Pendientes" bordered style={{ ...cardStyle, borderColor: "#ff4d4f" }}>
+            <div style={{ padding: 16 }}>
+              {pendingRisks.map((risk) => (
+                <div
+                  key={risk.key}
+                  style={{
+                    marginBottom: 12,
+                    padding: 12,
+                    background: "rgba(255,77,79,0.1)",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,77,79,0.3)",
+                  }}
+                >
+                  <div style={{ fontWeight: 800, color: "#ff4d4f", marginBottom: 4 }}>
+                    {risk.tipo}: {risk.descripcion}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#999" }}>
+                    Importancia: <span style={{ color: importanceColor(risk.importancia) }}>{risk.importancia}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ProCard>
+        )}
 
         {/* Charts */}
         <ProCard colSpan={8} title="% Riesgos Mitigados" bordered style={cardStyle}>
@@ -1126,33 +1174,6 @@ export default function StoreDashboard() {
           />
         </ProCard>
 
-        {/* Pending Risks */}
-        {pendingRisks.length > 0 && (
-          <ProCard colSpan={24} title="⚠️ Riesgos Pendientes" bordered style={{...cardStyle, borderColor: "#ff4d4f"}}>
-            <div style={{ padding: 16 }}>
-              {pendingRisks.map((risk) => (
-                <div
-                  key={risk.key}
-                  style={{
-                    marginBottom: 12,
-                    padding: 12,
-                    background: "rgba(255,77,79,0.1)",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,77,79,0.3)",
-                  }}
-                >
-                  <div style={{ fontWeight: 800, color: "#ff4d4f", marginBottom: 4 }}>
-                    {risk.tipo}: {risk.descripcion}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#999" }}>
-                    Importancia: <span style={{ color: importanceColor(risk.importancia) }}>{risk.importancia}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ProCard>
-        )}
-
         {/* Risks Table */}
         <ProCard colSpan={24} title="Detalle de Riesgos" bordered style={cardStyle}>
           <ProTable
@@ -1177,6 +1198,8 @@ export default function StoreDashboard() {
           setRiskModalOpen(false);
           setSelectedRisk(null);
           setRiskMeasuresError(null);
+          setMeasureSearchTerm("");
+          setMeasureCurrentPage(1);
         }}
         footer={[
           <Button
@@ -1185,11 +1208,14 @@ export default function StoreDashboard() {
               setRiskModalOpen(false);
               setSelectedRisk(null);
               setRiskMeasuresError(null);
+              setMeasureSearchTerm("");
+              setMeasureCurrentPage(1);
             }}
           >
             Cerrar
           </Button>,
         ]}
+        width={600}
       >
         {riskMeasuresError && (
           <Alert
@@ -1206,51 +1232,90 @@ export default function StoreDashboard() {
           </div>
         ) : (
           <>
-            <List
-              dataSource={riskMeasures}
-              locale={{ emptyText: "No hay medidas sugeridas para este riesgo." }}
-              renderItem={(m) => {
-                const applied = !!storeData?.measures?.some((am) => am.name === m.name);
-                return (
-                  <List.Item>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", width: "100%" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                    <List.Item.Meta
-                      title={
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          <Typography.Text strong>{m.name}</Typography.Text>
-                          <Tag color={m.type === "natural" ? "green" : m.type === "material" ? "blue" : "gold"}>
-                            {m.type}
-                          </Tag>
-                          {applied && <Tag color="success">Aplicada</Tag>}
-                        </div>
-                      }
-                      description={
-                        <Typography.Text type="secondary">
-                          Coste estimado: {Number(m.estimatedCost || 0).toLocaleString("es-ES")} €
-                        </Typography.Text>
-                      }
-                    />
-                      </div>
-
-                      <Button
-                        type="primary"
-                        disabled={applied || !storeData}
-                        loading={applyingMeasureName === m.name}
-                        onClick={() => applyMeasureFromModal(m)}
-                      >
-                        Aplicar
-                      </Button>
-                    </div>
-                  </List.Item>
-                );
+            {/* Buscador */}
+            <Input
+              placeholder="Buscar medida..."
+              prefix={<SearchOutlined style={{ color: "rgba(255,255,255,0.45)" }} />}
+              value={measureSearchTerm}
+              onChange={(e) => {
+                setMeasureSearchTerm(e.target.value);
+                setMeasureCurrentPage(1);
               }}
+              allowClear
+              style={{ marginBottom: 16 }}
             />
+
+            {(() => {
+              const filteredMeasures = riskMeasures.filter((m) =>
+                m.name.toLowerCase().includes(measureSearchTerm.toLowerCase()) ||
+                m.type?.toLowerCase().includes(measureSearchTerm.toLowerCase())
+              );
+              const totalItems = filteredMeasures.length;
+              const startIndex = (measureCurrentPage - 1) * MEASURES_PAGE_SIZE;
+              const paginatedMeasures = filteredMeasures.slice(startIndex, startIndex + MEASURES_PAGE_SIZE);
+
+              return (
+                <>
+                  <List
+                    dataSource={paginatedMeasures}
+                    locale={{ emptyText: measureSearchTerm ? "No hay medidas que coincidan." : "No hay medidas sugeridas para este riesgo." }}
+                    renderItem={(m) => {
+                      const applied = !!storeData?.measures?.some((am) => am.name === m.name);
+                      return (
+                        <List.Item>
+                          <div style={{ display: "flex", gap: 12, alignItems: "center", width: "100%" }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <List.Item.Meta
+                                title={
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                    <Typography.Text strong>{m.name}</Typography.Text>
+                                    <Tag color={m.type === "natural" ? "green" : m.type === "material" ? "blue" : "gold"}>
+                                      {m.type}
+                                    </Tag>
+                                    {applied && <Tag color="success">Aplicada</Tag>}
+                                  </div>
+                                }
+                                description={
+                                  <Typography.Text type="secondary">
+                                    Coste estimado: {Number(m.estimatedCost || 0).toLocaleString("es-ES")} €
+                                  </Typography.Text>
+                                }
+                              />
+                            </div>
+                            <Button
+                              type="primary"
+                              disabled={applied || !storeData}
+                              loading={applyingMeasureName === m.name}
+                              onClick={() => applyMeasureFromModal(m)}
+                            >
+                              Aplicar
+                            </Button>
+                          </div>
+                        </List.Item>
+                      );
+                    }}
+                  />
+                  {totalItems > MEASURES_PAGE_SIZE && (
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                      <Pagination
+                        current={measureCurrentPage}
+                        pageSize={MEASURES_PAGE_SIZE}
+                        total={totalItems}
+                        onChange={(page) => setMeasureCurrentPage(page)}
+                        showSizeChanger={false}
+                        showTotal={(total) => `${total} medidas`}
+                        size="small"
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {storeData?.measures?.length ? (
               <div style={{ marginTop: 12 }}>
                 <Typography.Text type="secondary">
-                  Nota: “Aplicada” significa que esa medida ya está aplicada en la tienda.
+                  Nota: "Aplicada" significa que esa medida ya está aplicada en la tienda.
                 </Typography.Text>
               </div>
             ) : null}

@@ -56,52 +56,86 @@ const countriesMatch = (a: string, b: string): boolean => {
   return false;
 };
 
+// ALIAS: mapea slugs (español/inglés) a nombres EXACTOS del SVG (en inglés)
 const ALIAS: Record<string, string> = {
-  spain: "España",
-  germany: "Alemania",
-  france: "Francia",
-  italy: "Italia",
-  "united-kingdom": "Reino Unido",
-  netherlands: "Países Bajos",
-  belgium: "Bélgica",
-  switzerland: "Suiza",
+  // Slugs en inglés
+  spain: "Spain",
+  germany: "Germany",
+  france: "France",
+  italy: "Italy",
+  "united-kingdom": "United Kingdom",
+  netherlands: "Netherlands",
+  belgium: "Belgium",
+  switzerland: "Switzerland",
   austria: "Austria",
-  poland: "Polonia",
-  czechia: "Chequia",
-  "czech-republic": "Chequia",
-  slovakia: "Eslovaquia",
-  hungary: "Hungría",
-  slovenia: "Eslovenia",
-  croatia: "Croacia",
-  greece: "Grecia",
-  romania: "Rumanía",
+  poland: "Poland",
+  czechia: "Czech Republic",
+  "czech-republic": "Czech Republic",
+  slovakia: "Slovakia",
+  hungary: "Hungary",
+  slovenia: "Slovenia",
+  croatia: "Croatia",
+  greece: "Greece",
+  romania: "Romania",
   bulgaria: "Bulgaria",
-  lithuania: "Lituania",
-  latvia: "Letonia",
+  lithuania: "Lithuania",
+  latvia: "Latvia",
   estonia: "Estonia",
-  finland: "Finlandia",
-  sweden: "Suecia",
-  norway: "Noruega",
-  iceland: "Islandia",
-  ireland: "Irlanda",
+  finland: "Finland",
+  sweden: "Sweden",
+  norway: "Norway",
+  denmark: "Denmark",
+  iceland: "Iceland",
+  ireland: "Ireland",
   andorra: "Andorra",
-  monaco: "Mónaco",
-  "san-marino": "San Marino",
   liechtenstein: "Liechtenstein",
-  luxembourg: "Luxemburgo",
-  malta: "Malta",
-  cyprus: "Chipre",
+  luxembourg: "Luxembourg",
+  cyprus: "Cyprus",
   albania: "Albania",
   serbia: "Serbia",
   montenegro: "Montenegro",
-  "north-macedonia": "Macedonia del Norte",
-  macedonia: "Macedonia del Norte",
-  "bosnia-and-herzegovina": "Bosnia y Herzegovina",
-  bosnia: "Bosnia y Herzegovina",
+  "north-macedonia": "Macedonia",
+  macedonia: "Macedonia",
+  "bosnia-and-herzegovina": "Bosnia and Herzegovina",
+  bosnia: "Bosnia and Herzegovina",
   kosovo: "Kosovo",
-  moldova: "Moldavia",
-  ukraine: "Ucrania",
-  belarus: "Bielorrusia",
+  moldova: "Moldova",
+  ukraine: "Ukraine",
+  belarus: "Belarus",
+  portugal: "Portugal",
+  turkey: "Turkey",
+  armenia: "Armenia",
+  georgia: "Georgia",
+  // Slugs en español (generados por slugify de nombres en español)
+  espana: "Spain",
+  alemania: "Germany",
+  francia: "France",
+  italia: "Italy",
+  "reino-unido": "United Kingdom",
+  "paises-bajos": "Netherlands",
+  belgica: "Belgium",
+  suiza: "Switzerland",
+  polonia: "Poland",
+  chequia: "Czech Republic",
+  eslovaquia: "Slovakia",
+  hungria: "Hungary",
+  eslovenia: "Slovenia",
+  croacia: "Croatia",
+  grecia: "Greece",
+  rumania: "Romania",
+  lituania: "Lithuania",
+  letonia: "Latvia",
+  finlandia: "Finland",
+  suecia: "Sweden",
+  noruega: "Norway",
+  dinamarca: "Denmark",
+  islandia: "Iceland",
+  irlanda: "Ireland",
+  chipre: "Cyprus",
+  moldavia: "Moldova",
+  ucrania: "Ukraine",
+  bielorrusia: "Belarus",
+  turquia: "Turkey",
 };
 
 /* ===== Utils matriz ===== */
@@ -252,7 +286,7 @@ export default function CountryMap() {
   const navigate = useNavigate();
   const { slug = "" } = useParams<{ slug: string }>();
   const { state } = useLocation() as { state?: { name?: string } };
-  
+
   // Get data from context
   const storesCtx = useStores();
 
@@ -388,16 +422,17 @@ export default function CountryMap() {
 
         // Get unique cluster IDs from filtered stores
         const countryClusterIds = new Set(parsedStores.map((s) => s.cluster_id).filter(Boolean));
-        
+
         // Filter clusters that belong to this country (based on stores)
-        const parsedClusters = clusters.filter((c) => 
+        const parsedClusters = clusters.filter((c) =>
           countryClusterIds.has(Number(c.id))
         );
 
         setStoresList(parsedStores);
 
-        // Map id -> inversión real (suma de costes de medidas aplicadas)
+        // Map id -> inversión y cobertura de riesgos
         const invById = new Map<string, number>();
+        const coverageById = new Map<string, number>();
 
         // Evitar lanzar demasiadas requests a la vez.
         const CHUNK = 10;
@@ -407,38 +442,46 @@ export default function CountryMap() {
             batch.map(async (s) => {
               const idNum = Number(s.id);
               if (!Number.isFinite(idNum)) return;
-              const measures = await shopService.getShopMeasures(idNum).catch(() => []);
+
+              // Obtener medidas y cobertura en paralelo
+              const [measures, coverage] = await Promise.all([
+                shopService.getShopMeasures(idNum).catch(() => []),
+                shopService.getRiskCoverage(idNum).catch(() => null),
+              ]);
+
               const investment = (measures || []).reduce(
                 (sum, m) => sum + (typeof m.estimatedCost === "number" ? m.estimatedCost : 0),
                 0
               );
               invById.set(String(s.id), investment);
+
+              // Guardar porcentaje de cobertura (0-100)
+              const coveragePct = coverage?.coverage_percentage ?? 0;
+              coverageById.set(String(s.id), coveragePct);
             })
           );
         }
 
         setInvByIdState(Object.fromEntries(invById.entries()));
 
-        const invValues = Array.from(invById.values()).filter((v) => typeof v === "number" && Number.isFinite(v));
-        const maxInv = invValues.length ? Math.max(...invValues) : 0;
-        const minInv = invValues.length ? Math.min(...invValues) : 0;
-
-        // más inversión => más rojo, menos inversión => más verde
+        // Color basado en cobertura de riesgos:
+        // - Rojo (0% cobertura) = tiendas que necesitan inversión
+        // - Verde (100% cobertura) = tiendas con todos los riesgos cubiertos
         const colorForStore = (storeId: string) => {
-          const inv = invById.get(String(storeId)) ?? 0;
-          const normalized = maxInv !== minInv ? (inv - minInv) / (maxInv - minInv) : (maxInv > 0 ? inv / maxInv : 0);
-          return redToGreen(1 - clamp01(normalized));
+          const coveragePct = coverageById.get(String(storeId)) ?? 0;
+          const normalized = clamp01(coveragePct / 100);
+          return redToGreen(normalized);
         };
 
         const vb =
           svg.viewBox && svg.viewBox.baseVal
             ? svg.viewBox.baseVal
             : ({
-                x: 0,
-                y: 0,
-                width: svg.clientWidth || 1000,
-                height: svg.clientHeight || 800,
-              } as DOMRect);
+              x: 0,
+              y: 0,
+              width: svg.clientWidth || 1000,
+              height: svg.clientHeight || 800,
+            } as DOMRect);
 
         let projectFromUTM: (E: number, N: number) => { x: number; y: number };
 
@@ -544,14 +587,19 @@ export default function CountryMap() {
 
         // ===== TIENDAS =====
         parsedStores.forEach((r) => {
-          const { x, y } = projectFromUTM(r.E, r.N);
+          let { x, y } = projectFromUTM(r.E, r.N);
+
+          const storeName = r.location || r.name || `Tienda ${r.id}`;
+
+          // Ajuste manual para Bilbao (está muy abajo en el mapa)
+          if (storeName.toLowerCase().includes("bilbao")) {
+            y -= 25; // Mover hacia arriba
+          }
 
           const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
           g.setAttribute("data-store-id", String(r.id));
           g.setAttribute("transform", `translate(${x}, ${y})`);
           g.style.cursor = "pointer";
-
-          const storeName = r.location || r.name || `Tienda ${r.id}`;
 
           const onEnter = (evt: Event) => {
             const e = evt as PointerEvent;
@@ -570,8 +618,8 @@ export default function CountryMap() {
           storesRef.current.push(g);
           g.style.display = showStores ? "" : "none";
 
-          const STORE_ICON_W = 12;
-          const STORE_ICON_H = 18;
+          const STORE_ICON_W = 18;
+          const STORE_ICON_H = 27;
 
           const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           svgIcon.setAttribute("viewBox", PIN_VIEWBOX);
@@ -613,11 +661,11 @@ export default function CountryMap() {
       svg.viewBox && svg.viewBox.baseVal
         ? svg.viewBox.baseVal
         : {
-            x: 0,
-            y: 0,
-            width: svg.clientWidth || 1000,
-            height: svg.clientHeight || 1000,
-          };
+          x: 0,
+          y: 0,
+          width: svg.clientWidth || 1000,
+          height: svg.clientHeight || 1000,
+        };
 
     const bbox = target.getBBox();
     const rectPx = svg.getBoundingClientRect();
@@ -971,7 +1019,7 @@ export default function CountryMap() {
                         Inversión: {invText}
                       </div>
                       <div style={{ fontSize: 11, color: "#666" }}>
-                        Cluster: {s.name}
+                        {s.name}
                       </div>
                     </div>
 

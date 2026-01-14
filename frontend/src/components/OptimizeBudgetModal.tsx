@@ -58,7 +58,9 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
 
   const selectedAlgo = Form.useWatch("algorithm", form) as OptimizationAlgorithm | undefined;
 
-  const [selectedShopIds, setSelectedShopIds] = useState<number[]>(fixedShopIds ?? []);
+  const [selectedShopIds, setSelectedShopIds] = useState<number[]>(
+    fixedShopIds?.length ? fixedShopIds : shops.map((s) => s.id)
+  );
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState(false);
 
@@ -140,7 +142,7 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
     if (fixedShopIds?.length) {
       setSelectedShopIds(fixedShopIds);
     } else {
-      setSelectedShopIds([]);
+      setSelectedShopIds(shops.map((s) => s.id));
     }
     form.resetFields();
   };
@@ -159,6 +161,12 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
 
     const shopIds = fixedShopIds?.length ? fixedShopIds : selectedShopIds;
 
+    console.log("=== runOptimization called ===");
+    console.log("algo:", algo);
+    console.log("budget:", budget);
+    console.log("shopIds:", shopIds);
+    console.log("priorityRiskIds:", priorityRiskIds);
+
     if (!shopIds.length) {
       message.warning("Selecciona al menos una tienda");
       return;
@@ -166,12 +174,14 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
 
     try {
       setRunning(true);
+      console.log("Calling optimizationService.optimizeBudget...");
       const result = await optimizationService.optimizeBudget({
         shop_ids: shopIds,
         max_budget: budget,
         strategy: algoToStrategy[algo],
         risk_priorities: priorityRiskIds,
       });
+      console.log("Optimization result:", result);
 
       const items = buildPreviewItems(result);
       setPreview({
@@ -219,11 +229,11 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
       }
 
       message.success("Cambios aplicados y guardados");
-      
+
       // Increment data version to notify all dashboards
       const currentVersion = parseInt(localStorage.getItem('dataVersion') || '0', 10);
       localStorage.setItem('dataVersion', String(currentVersion + 1));
-      
+
       setPreviewOpen(false);
       closeAll();
 
@@ -272,77 +282,77 @@ export const OptimizeBudgetModal: React.FC<Props> = ({
       >
         <div style={cardStyles}>
           <div style={{ padding: 16 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ algorithm: "basic", budget: 10000, priorityRiskIds: [] }}
-        >
-          <Form.Item label="Algoritmo" name="algorithm" rules={[{ required: true }]}>
-            <Radio.Group optionType="button" buttonStyle="solid">
-              <Radio.Button value="basic">
-                <ThunderboltOutlined /> Basic
-              </Radio.Button>
-              <Radio.Button value="plus">
-                <RocketOutlined /> Plus
-              </Radio.Button>
-              <Radio.Button value="premium">
-                <CrownOutlined /> Premium
-              </Radio.Button>
-            </Radio.Group>
-          </Form.Item>
+            <Form
+              form={form}
+              layout="vertical"
+              initialValues={{ algorithm: "basic", budget: 10000, priorityRiskIds: [] }}
+            >
+              <Form.Item label="Algoritmo" name="algorithm" rules={[{ required: true }]}>
+                <Radio.Group optionType="button" buttonStyle="solid">
+                  <Radio.Button value="basic">
+                    <ThunderboltOutlined /> Basic
+                  </Radio.Button>
+                  <Radio.Button value="plus">
+                    <RocketOutlined /> Plus
+                  </Radio.Button>
+                  <Radio.Button value="premium">
+                    <CrownOutlined /> Premium
+                  </Radio.Button>
+                </Radio.Group>
+              </Form.Item>
 
-          <Alert
-            showIcon
-            type="info"
-            message={
-              <span style={{ fontWeight: 900, color: colors.text.primary }}>
-                {algoHint.icon} {algoHint.title}
-              </span>
-            }
-            description={<span style={{ color: colors.text.secondary }}>{algoHint.desc}</span>}
-            style={{ marginBottom: 12, border: `1px solid ${colors.border.subtle}`, background: "rgba(255,255,255,0.04)" }}
-          />
-
-          <Form.Item label="Presupuesto máximo (€)" name="budget" rules={[{ required: true, message: "Presupuesto requerido" }]}>
-            <InputNumber min={1} style={{ width: 260 }} />
-          </Form.Item>
-
-          <Form.Item label="Riesgos prioritarios (opcional)" name="priorityRiskIds">
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="Selecciona riesgos prioritarios"
-              options={(riskOptions ?? []).map((r) => ({ value: r.id, label: r.label }))}
-            />
-          </Form.Item>
-
-          {canSelectShops && (
-            <>
-              <Divider />
-              <Typography.Text strong>Selecciona tiendas del país</Typography.Text>
-              <Table
-                style={{ marginTop: 8 }}
-                size="small"
-                columns={shopColumns}
-                dataSource={shopRows}
-                pagination={{ pageSize: 8 }}
-                rowSelection={{
-                  selectedRowKeys: selectedShopIds,
-                  onChange: (keys) => setSelectedShopIds(keys as number[]),
-                }}
+              <Alert
+                showIcon
+                type="info"
+                message={
+                  <span style={{ fontWeight: 900, color: colors.text.primary }}>
+                    {algoHint.icon} {algoHint.title}
+                  </span>
+                }
+                description={<span style={{ color: colors.text.secondary }}>{algoHint.desc}</span>}
+                style={{ marginBottom: 12, border: `1px solid ${colors.border.subtle}`, background: "rgba(255,255,255,0.04)" }}
               />
-            </>
-          )}
 
-          {!canSelectShops && fixedShopIds?.length ? (
-            <Alert
-              type="info"
-              showIcon
-              message={`Optimización para ${fixedShopIds.length} tienda(s)`}
-              style={{ marginTop: 12 }}
-            />
-          ) : null}
-        </Form>
+              <Form.Item label="Presupuesto máximo (€)" name="budget" rules={[{ required: true, message: "Presupuesto requerido" }]}>
+                <InputNumber min={1} style={{ width: 260 }} />
+              </Form.Item>
+
+              <Form.Item label="Riesgos prioritarios (opcional)" name="priorityRiskIds">
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Selecciona riesgos prioritarios"
+                  options={(riskOptions ?? []).map((r) => ({ value: r.id, label: r.label }))}
+                />
+              </Form.Item>
+
+              {canSelectShops && (
+                <>
+                  <Divider />
+                  <Typography.Text strong>Selecciona tiendas del país</Typography.Text>
+                  <Table
+                    style={{ marginTop: 8 }}
+                    size="small"
+                    columns={shopColumns}
+                    dataSource={shopRows}
+                    pagination={{ pageSize: 8 }}
+                    rowSelection={{
+                      selectedRowKeys: selectedShopIds,
+                      onChange: (keys) => setSelectedShopIds(keys as number[]),
+                    }}
+                  />
+                </>
+              )}
+
+              {!canSelectShops && fixedShopIds?.length ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={`Optimización para ${fixedShopIds.length} tienda(s)`}
+                  style={{ marginTop: 12 }}
+                />
+              ) : null}
+            </Form>
           </div>
         </div>
       </Modal>

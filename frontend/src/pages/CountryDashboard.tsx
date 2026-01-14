@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   PageContainer,
   ProCard,
-  StatisticCard,
   ProTable,
 } from "@ant-design/pro-components";
 import { Button, Progress, Spin, Alert } from "antd";
@@ -188,7 +187,7 @@ type ShopCoverageComputed = {
 export default function CountryDashboard() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countryData, setCountryData] = useState<CountryData | null>(null);
@@ -200,6 +199,7 @@ export default function CountryDashboard() {
   const [optCountryOpen, setOptCountryOpen] = useState(false);
   const [optShopOpen, setOptShopOpen] = useState(false);
   const [optShop, setOptShop] = useState<ShopWithCluster | null>(null);
+  const [visibleRisksCount, setVisibleRisksCount] = useState(5);
 
   const riskOptions = useMemo(
     () => risks.map((r) => ({ id: r.id, label: `${r.tipo}: ${r.descripcion}` })),
@@ -366,7 +366,7 @@ export default function CountryDashboard() {
       const totalRisks = sumTotalRisks || risksArray.length;
       const resolvedRisks = sumTotalRisks ? sumCoveredRisks : risksArray.filter((r) => r.estado === "Resuelto").length;
       const pendingRisks = sumTotalRisks ? sumUncoveredRisks : (totalRisks - resolvedRisks);
-      
+
       // Inversión real: suma de inversiones sugeridas por tienda
       const investment = Math.round(coverageValues.reduce((s, c) => s + c.suggestedInvestment, 0));
       console.log('[CountryDashboard] Investment calculation:', {
@@ -512,7 +512,31 @@ export default function CountryDashboard() {
       formatter: (datum: any) => `${datum.tipo}: ${datum.cantidad}`,
       style: { fill: "#fff" },
     },
-    legend: { position: "bottom" as const },
+    legend: {
+      position: "bottom" as const,
+      itemName: {
+        style: { fill: "#fff" },
+      },
+    },
+    statistic: {
+      title: {
+        style: {
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: 600,
+          textAlign: "center",
+        },
+        content: "Total",
+      },
+      content: {
+        style: {
+          color: "#fff",
+          fontSize: "20px",
+          fontWeight: 800,
+          textAlign: "center",
+        },
+      },
+    },
   };
 
   const years = Array.from({ length: 10 }, (_, i) => 2026 + i);
@@ -706,16 +730,21 @@ export default function CountryDashboard() {
       title={`Dashboard: ${countryData.país}`}
       extra={[
         <Button key="back" icon={<ArrowLeftOutlined />} onClick={() => navigate("/dashboards")}>
-          Volver
+          Global
         </Button>,
-        <Button key="opt" icon={<ThunderboltOutlined />} onClick={() => setOptCountryOpen(true)}>
+        <Button key="opt" type="primary" icon={<ThunderboltOutlined />} onClick={() => setOptCountryOpen(true)}>
           Optimizar
         </Button>,
         <Button
           key="map"
-          type="primary"
           icon={<EnvironmentOutlined />}
-          onClick={() => navigate(`/country/${slug}`)}
+          onClick={() => {
+            // Usamos el nombre en inglés para el slug del mapa
+            const englishName = getEnglishCountryName(countryData.país);
+            const mapSlug = englishName.toLowerCase().replace(/\s+/g, "-");
+            navigate(`/country/${mapSlug}`);
+          }}
+          style={{ backgroundColor: "#00ff88", borderColor: "#00ff88", color: "#000" }}
         >
           Ver Mapa
         </Button>,
@@ -746,43 +775,47 @@ export default function CountryDashboard() {
       <ProCard gutter={[16, 16]} wrap>
         {/* Summary Cards */}
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Inversión Total",
-              value: `${euroM(countryData.inversión)} €`,
-              valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#00ff88" }}>
+              {euroM(countryData.inversión)} €
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Inversión Total
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "ROI Esperado",
-              value: countryData.ROI,
-              valueStyle: { color: "#4B6BFD", fontSize: 24, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#4B6BFD" }}>
+              {countryData.ROI}
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              ROI Esperado
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Tiendas Totales",
-              value: countryData.tiendasTotales,
-              valueStyle: { color: "#fff", fontSize: 24, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#fff" }}>
+              {countryData.tiendasTotales}
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Tiendas Totales
+            </div>
+          </div>
         </ProCard>
 
         <ProCard colSpan={6} bordered style={cardStyle}>
-          <StatisticCard
-            statistic={{
-              title: "Beneficio Anual",
-              value: `${euroM(countryData.beneficioAnual)} €`,
-              valueStyle: { color: "#00ff88", fontSize: 24, fontWeight: 900 },
-            }}
-          />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#00ff88" }}>
+              {euroM(countryData.beneficioAnual)} €
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+              Beneficio Anual
+            </div>
+          </div>
         </ProCard>
 
         {/* Progress Cards */}
@@ -825,6 +858,67 @@ export default function CountryDashboard() {
             </div>
           </div>
         </ProCard>
+
+        {/* Pending Risks - mostrar justo después del progreso */}
+        {(() => {
+          const pendingRisks = risks
+            .filter(r => r.estado === "Pendiente")
+            .sort((a, b) => b.tiendas_afectadas - a.tiendas_afectadas);
+          const visibleRisks = pendingRisks.slice(0, visibleRisksCount);
+          const hasMore = pendingRisks.length > visibleRisksCount;
+
+          return pendingRisks.length > 0 && (
+            <ProCard colSpan={24} title={`⚠️ Riesgos Pendientes (${pendingRisks.length})`} bordered style={{ ...cardStyle, borderColor: "#ff4d4f" }}>
+              <div style={{ padding: 16 }}>
+                {visibleRisks.map((risk) => (
+                  <div
+                    key={risk.id}
+                    style={{
+                      marginBottom: 12,
+                      padding: 12,
+                      background: "rgba(255,77,79,0.1)",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,77,79,0.3)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: "#ff4d4f", marginBottom: 4 }}>
+                      {risk.tipo}: {risk.descripcion}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#999" }}>
+                      Frecuencia: <span style={{ color: risk.frecuencia === "Alta" ? "#ff4d4f" : risk.frecuencia === "Media" ? "#faad14" : "#52c41a" }}>{risk.frecuencia}</span>
+                      {" · "}
+                      Impacto: <span style={{ color: risk.impacto === "Alto" ? "#ff4d4f" : risk.impacto === "Medio" ? "#faad14" : "#52c41a" }}>{risk.impacto}</span>
+                      {" · "}
+                      Tiendas afectadas: {risk.tiendas_afectadas}
+                    </div>
+                  </div>
+                ))}
+                {hasMore && (
+                  <div style={{ textAlign: "center", marginTop: 12 }}>
+                    <Button
+                      type="link"
+                      onClick={() => setVisibleRisksCount(prev => prev + 5)}
+                      style={{ color: "#ff4d4f" }}
+                    >
+                      Ver más riesgos ({pendingRisks.length - visibleRisksCount} restantes)
+                    </Button>
+                  </div>
+                )}
+                {visibleRisksCount > 5 && (
+                  <div style={{ textAlign: "center", marginTop: 4 }}>
+                    <Button
+                      type="link"
+                      onClick={() => setVisibleRisksCount(5)}
+                      style={{ color: "#999" }}
+                    >
+                      Mostrar menos
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ProCard>
+          );
+        })()}
 
         {/* Charts */}
         <ProCard colSpan={8} title="% Riesgos Resueltos" bordered style={cardStyle}>
