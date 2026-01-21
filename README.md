@@ -1,4 +1,4 @@
-# MANGO-PAE — Climate Invest Optimizer
+# MANGO-PAE — RiskGuard
 
 Herramienta para gestionar y optimizar inversiones en medidas de mitigación de riesgos climáticos sobre una red de tiendas (retail locations).
 
