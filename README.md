@@ -128,54 +128,54 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/shops` | List all shops (paginated) |
-| GET | `/api/v1/shops/:id` | Get shop details |
-| POST | `/api/v1/shops` | Create a new shop |
-| PATCH | `/api/v1/shops/:id` | Update a shop |
-| DELETE | `/api/v1/shops/:id` | Delete a shop |
-| GET | `/api/v1/shops/:id/measures` | Get applied measures for a shop |
-| POST | `/api/v1/shops/:id/measures` | Apply measures to a shop |
-| DELETE | `/api/v1/shops/:id/measures/:measureName` | Remove a measure from a shop |
-| GET | `/api/v1/shops/:id/applicable-measures` | Get measures not yet applied to a shop |
-| GET | `/api/v1/shops/:id/risk-assessment` | Get risk assessment for a shop |
-| GET | `/api/v1/shops/:id/risk-coverage` | Get risk coverage status for a shop |
+| GET | `/api/v1/shops` | Listar todas las tiendas (paginación) |
+| GET | `/api/v1/shops/:id` | Obtener detalles de la tienda |
+| POST | `/api/v1/shops` | Crear una nueva tienda |
+| PATCH | `/api/v1/shops/:id` | Actualizar una tienda |
+| DELETE | `/api/v1/shops/:id` | Eliminar una tienda |
+| GET | `/api/v1/shops/:id/measures` | Obtenga medidas aplicadas para una tienda |
+| POST | `/api/v1/shops/:id/measures` | Aplicar medidas a una tienda |
+| DELETE | `/api/v1/shops/:id/measures/:measureName` | Eliminar una medida de una tienda |
+| GET | `/api/v1/shops/:id/applicable-measures` | Obtener medidas aún no aplicadas a una tienda |
+| GET | `/api/v1/shops/:id/risk-assessment` | Obtenga una evaluación de riesgos para una tienda |
+| GET | `/api/v1/shops/:id/risk-coverage` | Obtenga el estado de cobertura de riesgos de una tienda |
 
 ### Clusters
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/clusters` | List all clusters |
-| GET | `/api/v1/clusters/:id` | Get cluster details |
-| GET | `/api/v1/clusters/:id/shops` | Get shops in a cluster |
-| GET | `/api/v1/clusters/:id/risks` | Get risks for a cluster |
+| GET | `/api/v1/clusters` | Lista de todos los clústeres |
+| GET | `/api/v1/clusters/:id` | Obtener detalles del clúster |
+| GET | `/api/v1/clusters/:id/shops` | Obtener tiendas en un clúster |
+| GET | `/api/v1/clusters/:id/risks` | Obtener riesgos para un clúster |
 
 ### Measures
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/measures` | List all measures |
-| GET | `/api/v1/measures?type=natural` | Filter by type (backend) |
-| GET | `/api/v1/measures/:name` | Get measure by name |
+| GET | `/api/v1/measures` | Lista de todas las medidas |
+| GET | `/api/v1/measures?type=natural` | Filtrar por tipo (backend) |
+| GET | `/api/v1/measures/:name` | Obtener medida por nombre |
 
 ### Risks
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/risks` | List all risks |
-| GET | `/api/v1/risks/:id` | Get risk by ID |
-| GET | `/api/v1/risks/:id/measures` | Get measures that cover a risk |
+| GET | `/api/v1/risks` | Lista de todos los riesgos |
+| GET | `/api/v1/risks/:id` | Obtener riesgo por ID |
+| GET | `/api/v1/risks/:id/measures` | Obtener las medidas que cubran un riesgo |
 
 ### Optimization
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/optimization/budget` | Optimize measure allocation within budget |
+| POST | `/api/v1/optimization/budget` | Optimizar la asignación de medidas dentro del presupuesto |
 
 ### Dashboard
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/dashboard/stats` | Get dashboard statistics |
+| GET | `/api/v1/dashboard/stats` | Obtener estadísticas del dashboard |
 
 ## 🧮 Algoritmo de Optimización
 
@@ -291,11 +291,3 @@ El endpoint `/api/v1/shops/:id/risk-coverage` devuelve información detallada so
 ## 📜 Licencia
 
 Apache 2.0 License - ver `LICENSE` para detalles.
-
-
-Puedes aplicar el estilo de ver mapa del dashboard global al de pais tambien, el Ver Mapa del country no funcoina  
-sale este error (No se encontró el país para slug "espana". El error se recrea, primero yendo al dashboard      
-global y luego en la parte de abajo donde aparecen los paises hacer click en espana y sale este error). Tambien  
-cuando voy a ver las medidas que hay para afrontar un riesgo me sale una lista muy larga. Puedes hacer que       
-aparezcan 5 o 10 y que los demas tenga una flecha para ver los 10 siguientes y un buscador para buscar por       
-palabras.    
